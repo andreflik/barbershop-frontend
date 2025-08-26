@@ -1,6 +1,6 @@
 <template>
   <div class="container mx-auto p-4">
-    <h1 class="text-2xl font-bold mb-4">Agendar Corte</h1>
+    <h1 class="text-2xl font-bold mb-4">Agendar Serviço</h1>
     <div class="calendar-container">
       <!-- Calendário para seleção de data -->
       <vc-calendar

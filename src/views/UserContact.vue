@@ -2,7 +2,15 @@
   <div class="min-h-screen bg-gray-100 p-8">
     <div class="max-w-xl mx-auto bg-white rounded shadow p-6">
       <h2 class="text-2xl font-bold mb-4 text-center">Tabela de Preços</h2>
-      <table class="w-full text-left border-collapse">
+
+      <!-- estados -->
+      <div v-if="loading" class="text-center text-gray-500 py-6">Carregando...</div>
+      <div v-else-if="!servicos.length" class="text-center text-gray-500 py-6">
+        Nenhum serviço cadastrado.
+      </div>
+
+      <!-- tabela -->
+      <table v-else class="w-full text-left border-collapse">
         <thead>
         <tr>
           <th class="border-b pb-2">Serviço</th>
@@ -10,33 +18,9 @@
         </tr>
         </thead>
         <tbody>
-        <tr class="border-b">
-          <td>Corte de Máquina</td>
-          <td class="text-right">R$ 23,00</td>
-        </tr>
-        <tr class="border-b">
-          <td>Corte de Tesoura</td>
-          <td class="text-right">R$ 27,00</td>
-        </tr>
-        <tr class="border-b">
-          <td>Barba</td>
-          <td class="text-right">R$ 18,00</td>
-        </tr>
-        <tr class="border-b">
-          <td>Sobrancelha</td>
-          <td class="text-right">R$ 12,00</td>
-        </tr>
-        <tr class="border-b">
-          <td>Corte Navalhado</td>
-          <td class="text-right">R$ 32,00</td>
-        </tr>
-        <tr class="border-b">
-          <td>Pé de Cabelo</td>
-          <td class="text-right">R$ 10,00</td>
-        </tr>
-        <tr>
-          <td>Pigmentação</td>
-          <td class="text-right">R$ 15,00</td>
+        <tr v-for="s in servicos" :key="s.id" class="border-b">
+          <td class="py-2">{{ s.servico }}</td>
+          <td class="py-2 text-right">{{ money(s.preco) }}</td>
         </tr>
         </tbody>
       </table>
@@ -54,14 +38,8 @@
               target="_blank"
               class="flex items-center space-x-2 hover:opacity-80 transition"
           >
-            <img
-                src="../assets/instagram2.png"
-                alt="Instagram"
-                class="w-11 h-11 "
-            />
-            <span class="font-medium text-pink-600 hover:text-pink-700">
-      @marquinholijs
-    </span>
+            <img src="../assets/instagram2.png" alt="Instagram" class="w-11 h-11" />
+            <span class="font-medium text-pink-600 hover:text-pink-700">@marquinholijs</span>
           </a>
         </div>
       </div>
@@ -70,7 +48,35 @@
 </template>
 
 <script>
+import api from '../axios';
+
 export default {
   name: 'UserContact',
+  data() {
+    return {
+      loading: true,
+      servicos: [],
+    };
+  },
+  async mounted() {
+    await this.fetchServicos();
+  },
+  methods: {
+    async fetchServicos() {
+      try {
+        const { data } = await api.get('/servicos-publicos');
+        this.servicos = Array.isArray(data) ? data : [];
+      } catch (e) {
+        console.error('Erro ao carregar serviços:', e);
+        this.servicos = [];
+      } finally {
+        this.loading = false;
+      }
+    },
+    money(v) {
+      const n = Number(v ?? 0);
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+    },
+  },
 };
 </script>
