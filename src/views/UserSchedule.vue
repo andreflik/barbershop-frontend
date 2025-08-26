@@ -29,7 +29,7 @@
                 :value="hour"
                 :disabled="bookedTimes.includes(hour)"
             >
-              {{ hour }} <span v-if="bookedTimes.includes(hour)"> (Indisponível)</span>
+              {{ hour }}{{ bookedTimes.includes(hour) ? ' (Indisponível)' : '' }}
             </option>
           </select>
         </div>
@@ -55,7 +55,7 @@
         <h2 class="text-lg font-semibold mb-2">Data e Horário Selecionados</h2>
         <p>
           <span v-if="formattedDate">{{ formattedDate }}</span>
-          <span v-if="selectedTime">às {{ selectedTime }}</span>
+          <span v-if="selectedTime"> às {{ selectedTime }}</span>
         </p>
       </div>
 
@@ -71,21 +71,24 @@
 </template>
 
 <script>
-function notify (opts = {}) {
-  try {
-    if (typeof window !== 'undefined' && window.Swal && typeof window.Swal.fire === 'function') {
-      return window.Swal.fire(opts);
-    }
-  } catch (e) {
-    // ignore
-  }
+function notify(opts = {}) {
+  const hasSwal =
+      typeof window !== 'undefined' &&
+      window.Swal &&
+      typeof window.Swal.fire === 'function';
+
+  if (hasSwal) return window.Swal.fire(opts);
+
+  // Fallback simples
   const title = opts.title || '';
   const text = opts.text || '';
   const msg = [title, text].filter(Boolean).join('\n');
   if (opts.icon === 'error') console.error('❌', title, text);
   else if (opts.icon === 'warning') console.warn('⚠️', title, text);
   else console.log('ℹ️', title, text);
-  if (typeof window !== 'undefined' && window.alert) window.alert(msg || 'Ação executada.');
+  if (typeof window !== 'undefined' && window.alert) {
+    window.alert(msg || 'Ação executada.');
+  }
 }
 
 const API_URL = process.env.VUE_APP_API_URL;
@@ -98,7 +101,7 @@ export default {
       selectedTime: '',
       selectedService: '',
       servicos: [],
-      bookedTimes: [],
+      bookedTimes: [],      // sempre no formato HH:mm
       availableTimes: [],
       allTimes: this.generateTimeSlots('07:00', '18:00', 30),
       calendarAttributes: [
@@ -115,7 +118,9 @@ export default {
     formattedDate() {
       if (this.selectedDate) {
         const date = new Date(this.selectedDate);
-        return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+        return `${String(date.getDate()).padStart(2, '0')}/${String(
+            date.getMonth() + 1
+        ).padStart(2, '0')}/${date.getFullYear()}`;
       }
       return null;
     },
@@ -198,7 +203,10 @@ export default {
         });
         const data = await response.json();
         if (response.ok) {
-          this.bookedTimes = data.bookedTimes || [];
+          // normaliza para HH:mm
+          this.bookedTimes = (data.bookedTimes || []).map(t =>
+              typeof t === 'string' && t.length >= 5 ? t.slice(0, 5) : String(t)
+          );
         } else {
           notify({ icon: 'error', title: 'Erro', text: data.message || 'Erro ao buscar horários.' });
         }
@@ -251,8 +259,8 @@ export default {
         const data = await response.json();
 
         if (response.ok) {
-          this.bookedTimes.push(this.selectedTime);
-          this.availableTimes = this.availableTimes.filter((t) => t !== this.selectedTime);
+          // Recarrega horários ocupados já normalizados
+          await this.fetchBookedTimes();
           this.selectedTime = '';
 
           notify({
@@ -262,7 +270,8 @@ export default {
           });
         } else {
           if (response.status === 422 && data.errors) {
-            const errorMsg = Object.values(data.errors)[0];
+            const firstErr = Object.values(data.errors)[0];
+            const errorMsg = Array.isArray(firstErr) ? firstErr[0] : firstErr;
             notify({ icon: 'error', title: 'Erro de Validação', text: errorMsg || 'Dados inválidos.' });
           } else {
             notify({ icon: 'error', title: 'Erro', text: data.message || 'Erro ao salvar o agendamento.' });
