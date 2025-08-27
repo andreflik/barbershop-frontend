@@ -27,7 +27,6 @@
 
       <div>
         <label class="text-sm text-gray-600">Mês/Ano</label>
-        <!-- Novo calendário bonito -->
         <flat-pickr
             v-model="mesAnoDate"
             :config="fpConfig"
@@ -152,11 +151,10 @@
 </template>
 
 <script>
-import api from '../axios';
+import api from '@/services/api';
 import excelIcon from '@/assets/excel.png';
 import pdfIcon from '@/assets/pdf.png';
 
-// Flatpickr (calendário bonito)
 import FlatPickr from 'vue-flatpickr-component';
 import 'flatpickr/dist/flatpickr.css';
 import 'flatpickr/dist/themes/material_blue.css';
@@ -172,19 +170,16 @@ export default {
       q: '',
       servicoId: '',
       usuarioId: '',
-      mesAno: '',        // YYYY-MM para enviar ao backend
-      mesAnoDate: null,  // Date usado pelo Flatpickr
+      mesAno: '',
+      mesAnoDate: null,
       page: 1,
       itens: { data: [], current_page: 1, last_page: 1 },
       servicosOpts: [],
       usuariosOpts: [],
       loading: false,
       exporting: false,
-      exportingType: '', // 'xlsx' | 'pdf' | ''
-      icons: {
-        excel: excelIcon,
-        pdf: pdfIcon,
-      },
+      exportingType: '',
+      icons: { excel: excelIcon, pdf: pdfIcon },
       fpConfig: {
         locale: Portuguese,
         altInput: true,
@@ -241,7 +236,7 @@ export default {
       try {
         const res = await api.get('/admin/agendamentos', { params: this.paramsComFiltros() });
         this.itens = res.data || { data: [], current_page: 1, last_page: 1 };
-      } catch (e) {
+      } catch (_) {
         this.itens = { data: [], current_page: 1, last_page: 1 };
       } finally {
         this.loading = false;
@@ -275,8 +270,11 @@ export default {
     servicoNome(a) {
       if (!a) return '-';
       const s = a.servico;
-      if (s && typeof s === 'object' && s.servico) return s.servico;
-      if (typeof s === 'string' && s) return s;
+      if (!s) return '-';
+      if (typeof s === 'object') {
+        return s.nome ?? s.servico ?? s.name ?? '-';
+      }
+      if (typeof s === 'string') return s || '-';
       return '-';
     },
     formatDate(dataString) {

@@ -2,7 +2,6 @@
   <div class="p-4">
     <h2 class="text-2xl font-bold mb-4 text-center">Painel de Agendamentos</h2>
 
-    <!-- Select de ano -->
     <div class="mb-4 text-center">
       <label for="ano" class="font-semibold mr-2">Selecione o ano:</label>
       <select id="ano" v-model="selectedYear" class="border rounded px-2 py-1">
@@ -10,7 +9,6 @@
       </select>
     </div>
 
-    <!-- Tabela (sem gráfico) -->
     <div class="bg-white p-4 rounded shadow max-w-5xl mx-auto">
       <h3 class="text-center font-semibold mb-2">Seus Agendamentos</h3>
 
@@ -29,9 +27,7 @@
         <tbody>
         <tr v-for="(item, index) in agendamentosDetalhados" :key="index">
           <td class="border px-4 py-2">{{ formatDate(item.data_agendamento || item.data) }}</td>
-          <td class="border px-4 py-2">
-            {{ (item.hora_agendamento || item.hora_ini || '').slice(0, 5) }}
-          </td>
+          <td class="border px-4 py-2">{{ (item.hora_agendamento || item.hora_ini || '').slice(0, 5) }}</td>
           <td class="border px-4 py-2">
             {{ item?.servico?.servico || item?.servico?.nome || item?.servico?.name || getServicoNome(item.servico_id) }}
           </td>
@@ -54,7 +50,6 @@
 
       <p v-else class="text-center text-gray-500 mt-6">Nenhum agendamento encontrado.</p>
 
-      <!-- Paginação -->
       <div v-if="pagination?.total > 0" class="flex justify-center mt-4 space-x-2">
         <button
             @click="goToPage(pagination.current_page - 1)"
@@ -79,16 +74,17 @@
 <script>
 import dayjs from 'dayjs'
 import utc from 'dayjs/plugin/utc'
+import api from '@/services/api'
 dayjs.extend(utc)
 
-/** Notificação genérica (usa SweetAlert2 se disponível, senão fallback) */
+/** Notificação genérica */
 function notify (opts = {}) {
   try {
     if (typeof window !== 'undefined' && window.Swal && typeof window.Swal.fire === 'function') {
       return window.Swal.fire(opts)
     }
   } catch (e) {
-    if (process.env.NODE_ENV !== 'production') console.debug('[notify] fallback:', e)
+    if (process.env.NODE_ENV !== 'production') console.debug('[notify] fallback error:', e)
   }
   const title = opts.title || ''
   const text = opts.text || ''
@@ -99,7 +95,7 @@ function notify (opts = {}) {
   if (typeof window !== 'undefined' && window.alert) window.alert(msg || 'Ação executada.')
 }
 
-/** Diálogo de confirmação genérico */
+/** Diálogo de confirmação */
 async function confirmDialog({
                                title = 'Confirmar',
                                text = 'Deseja continuar?',
@@ -117,19 +113,16 @@ async function confirmDialog({
       return !!ret.isConfirmed
     }
   } catch (e) {
-    if (process.env.NODE_ENV !== 'production') console.debug('[confirmDialog] fallback:', e)
+    if (process.env.NODE_ENV !== 'production') console.debug('[confirmDialog] fallback error:', e)
   }
   return typeof window !== 'undefined' ? window.confirm(`${title}\n${text}`) : true
 }
 
 export default {
   name: 'UserStats',
-
-  /** IMPORTANTE: o pai (UserDashboard) deve passar :authReady="authReady" */
   props: {
     authReady: { type: Boolean, default: false }
   },
-
   data() {
     return {
       selectedYear: null,
@@ -140,16 +133,11 @@ export default {
       loading: false
     }
   },
-
   mounted() {
     this.initAnosDisponiveis()
-    // Seleciona o ano atual por padrão
     this.selectedYear = this.anosDisponiveis[0]
-    // Não chama fetch aqui; esperamos authReady via watch (abaixo)
   },
-
   watch: {
-    // Assim que authReady ficar true, carrega tudo (serviços -> estatísticas)
     authReady: {
       immediate: true,
       async handler(val) {
@@ -159,45 +147,23 @@ export default {
         }
       }
     },
-    // Troca de ano recarrega estatísticas (se já autenticado)
     selectedYear() {
       if (this.authReady) this.fetchEstatisticas(1)
     }
   },
-
   methods: {
     initAnosDisponiveis() {
       const atual = new Date().getFullYear()
-      // últimos 5 anos (começando pelo atual)
       this.anosDisponiveis = Array.from({ length: 5 }, (_, i) => atual - i)
     },
 
-    apiBase() {
-      return process.env.VUE_APP_API_URL?.replace(/\/+$/, '')
-    },
-
-    getAuthHeader() {
-      const token = localStorage.getItem('auth_token')
-      return token ? { Authorization: `Bearer ${token}` } : {}
-    },
-
     async fetchServicos() {
-      if (!this.authReady) return
       try {
-        const url = `${this.apiBase()}/agendar-corte/servicos`
-        const res = await fetch(url, { headers: this.getAuthHeader() })
-        const data = await res.json()
-
-        // Normaliza diferentes formatos
-        if (Array.isArray(data)) {
-          this.servicos = data
-        } else if (Array.isArray(data.servicos)) {
-          this.servicos = data.servicos
-        } else if (Array.isArray(data.data)) {
-          this.servicos = data.data
-        } else {
-          this.servicos = []
-        }
+        const { data } = await api.get('/agendar-corte/servicos')
+        this.servicos =
+            Array.isArray(data?.servicos) ? data.servicos :
+                Array.isArray(data?.data)     ? data.data :
+                    Array.isArray(data)           ? data : []
       } catch (error) {
         console.error('Erro ao carregar serviços:', error)
         this.servicos = []
@@ -205,14 +171,13 @@ export default {
     },
 
     async fetchEstatisticas(page = 1) {
-      if (!this.authReady || this.loading) return
+      if (this.loading) return
       this.loading = true
       try {
-        const url = `${this.apiBase()}/dashboard/estatisticas?ano=${this.selectedYear}&page=${page}`
-        const res = await fetch(url, { headers: this.getAuthHeader() })
-        const data = await res.json()
+        const { data } = await api.get('/dashboard/estatisticas', {
+          params: { ano: this.selectedYear, page }
+        })
 
-        // Mantém compatibilidade com diferentes formatos de resposta
         if (Array.isArray(data.agendamentosDetalhados)) {
           this.agendamentosDetalhados = data.agendamentosDetalhados
           this.pagination = data.pagination || {
@@ -254,19 +219,12 @@ export default {
       if (!ok) return
 
       try {
-        const res = await fetch(`${this.apiBase()}/agendar-corte/${id}`, {
-          method: 'DELETE',
-          headers: this.getAuthHeader()
-        })
-        const data = await res.json()
-        if (res.ok) {
-          notify({ icon: 'success', title: 'Excluído!', text: data.message || 'Agendamento excluído.' })
-          this.fetchEstatisticas(this.pagination?.current_page || 1)
-        } else {
-          notify({ icon: 'error', title: 'Erro', text: data.error || 'Erro ao excluir' })
-        }
+        const { data } = await api.delete(`/agendar-corte/${id}`)
+        notify({ icon: 'success', title: 'Excluído!', text: data?.message || 'Agendamento excluído.' })
+        this.fetchEstatisticas(this.pagination?.current_page || 1)
       } catch (error) {
-        notify({ icon: 'error', title: 'Erro', text: 'Erro ao conectar ao servidor' })
+        const msg = error?.response?.data?.message || error?.response?.data?.error || 'Erro ao excluir'
+        notify({ icon: 'error', title: 'Erro', text: msg })
       }
     },
 
@@ -281,7 +239,6 @@ export default {
       return dayjs.utc(date).format('DD/MM/YYYY')
     },
 
-    /** Obtém o nome do serviço a partir do ID com tolerância de chaves */
     getServicoNome(servicoId) {
       const s = this.servicos.find(x => Number(x.id) === Number(servicoId))
       if (!s) return 'Não informado'

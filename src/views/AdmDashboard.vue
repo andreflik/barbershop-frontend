@@ -8,34 +8,19 @@
         </div>
 
         <nav class="flex gap-2">
-          <!-- Ir para o painel normal do usuário -->
-          <button
-              @click="goUser"
-              class="px-3 py-2 rounded bg-white/10 hover:bg-white/20"
-          >
+          <button @click="goUser" class="px-3 py-2 rounded bg-white/10 hover:bg-white/20">
             Painel do Usuário
           </button>
 
-          <router-link
-              :to="{ name:'AdminAgendamentos' }"
-              class="px-3 py-2 rounded bg-white/10 hover:bg-white/20"
-          >
+          <router-link :to="{ name: 'AdminAgendamentos' }" class="px-3 py-2 rounded bg-white/10 hover:bg-white/20">
             Agendamentos
           </router-link>
 
-          <router-link
-              :to="{ name:'AdminServicos' }"
-              class="px-3 py-2 rounded bg-white/10 hover:bg-white/20"
-          >
+          <router-link :to="{ name: 'AdminServicos' }" class="px-3 py-2 rounded bg-white/10 hover:bg-white/20">
             Serviços
           </router-link>
 
-          <!-- Logout -->
-          <button
-              @click="logout"
-              class="px-3 py-2 rounded bg-red-500 hover:bg-red-600"
-              title="Sair"
-          >
+          <button @click="logout" class="px-3 py-2 rounded bg-red-500 hover:bg-red-600" title="Sair">
             Sair
           </button>
         </nav>
@@ -49,33 +34,45 @@
 </template>
 
 <script>
-import api from '../axios';
+import api from '@/services/api';
 
 export default {
   name: 'AdmDashboard',
   methods: {
     async logout() {
       try {
-        // Se existir endpoint para invalidar o token
         await api.post('/logout');
       } catch (e) {
-        // silencioso
+        if (process.env.NODE_ENV !== 'production') {
+          // eslint-disable-next-line no-console
+          console.debug('[logout] ignorando erro do /logout', e?.message || e);
+        }
       } finally {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user_role');
         localStorage.removeItem('user_name');
-        // Redireciona por PATH para evitar depender do name da rota
-        this.$router.push('/').catch(() => {});
+        this.$router.push('/').catch((err) => {
+          if (process.env.NODE_ENV !== 'production') {
+            // eslint-disable-next-line no-console
+            console.debug('[router] push / falhou (ignorado)', err?.message || err);
+          }
+          return null;
+        });
       }
     },
     goUser() {
-      // Evita depender de 'name' de rota; usa path do painel de usuário
-      this.$router.push('/dashboard').catch(() => {});
+      this.$router.push('/dashboard').catch((err) => {
+        if (process.env.NODE_ENV !== 'production') {
+          // eslint-disable-next-line no-console
+          console.debug('[router] push /dashboard falhou (ignorado)', err?.message || err);
+        }
+        return null;
+      });
     }
   }
 };
 </script>
 
 <style scoped>
-/* estilos via classes utilitárias do Tailwind */
+/* estilos via Tailwind */
 </style>
