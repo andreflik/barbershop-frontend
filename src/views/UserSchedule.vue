@@ -2,7 +2,7 @@
   <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-4">Agendar Serviço</h1>
     <div class="calendar-container">
-      <!-- Calendário para seleção de data -->
+      <!-- Calendário -->
       <vc-calendar
           v-model="selectedDate"
           is-expanded
@@ -10,18 +10,14 @@
           locale="pt-BR"
           @dayclick="onDayClick"
           :attributes="calendarAttributes"
-      ></vc-calendar>
+      />
 
-      <!-- Linha com horário e serviço lado a lado -->
+      <!-- Linha com horário e serviço -->
       <div class="mt-4 flex space-x-4">
-        <!-- Select de horário -->
+        <!-- Horário -->
         <div class="w-1/2">
           <label class="block text-sm font-medium mb-1">Horário</label>
-          <select
-              v-model="selectedTime"
-              class="border rounded w-full px-2 py-1 text-sm"
-              required
-          >
+          <select v-model="selectedTime" class="border rounded w-full px-2 py-1 text-sm" required>
             <option disabled value="">Selecione o horário</option>
             <option
                 v-for="hour in allTimes"
@@ -34,23 +30,27 @@
           </select>
         </div>
 
-        <!-- Select de serviço -->
+        <!-- Serviço -->
         <div class="w-1/2">
           <label class="block text-sm font-medium mb-1">Serviço</label>
           <select
-              v-model="selectedService"
+              v-model.number="selectedService"
               class="border rounded w-full px-2 py-1 text-sm"
               required
           >
-            <option disabled value="">Selecione o serviço</option>
-            <option v-for="servico in servicos" :key="servico.id" :value="servico.id">
-              {{ servico.servico }}
+            <option disabled :value="null">Selecione o serviço</option>
+            <option
+                v-for="s in servicos"
+                :key="s.id"
+                :value="s.id"
+            >
+              {{ s.label }}
             </option>
           </select>
         </div>
       </div>
 
-      <!-- Mostra data e horário selecionados -->
+      <!-- Escolhas -->
       <div class="mt-4">
         <h2 class="text-lg font-semibold mb-2">Data e Horário Selecionados</h2>
         <p>
@@ -59,7 +59,7 @@
         </p>
       </div>
 
-      <!-- Botão de ação -->
+      <!-- Ação -->
       <button
           @click="scheduleEvent"
           class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 transition"
@@ -71,37 +71,29 @@
 </template>
 
 <script>
-function notify(opts = {}) {
-  const hasSwal =
-      typeof window !== 'undefined' &&
-      window.Swal &&
-      typeof window.Swal.fire === 'function';
-
-  if (hasSwal) return window.Swal.fire(opts);
-
-  // Fallback simples
-  const title = opts.title || '';
-  const text = opts.text || '';
-  const msg = [title, text].filter(Boolean).join('\n');
-  if (opts.icon === 'error') console.error('❌', title, text);
-  else if (opts.icon === 'warning') console.warn('⚠️', title, text);
-  else console.log('ℹ️', title, text);
-  if (typeof window !== 'undefined' && window.alert) {
-    window.alert(msg || 'Ação executada.');
-  }
+function notify (opts = {}) {
+  const hasSwal = typeof window !== 'undefined' && window.Swal && typeof window.Swal.fire === 'function'
+  if (hasSwal) return window.Swal.fire(opts)
+  const title = opts.title || ''
+  const text  = opts.text  || ''
+  const msg   = [title, text].filter(Boolean).join('\n')
+  if (opts.icon === 'error') console.error('❌', title, text)
+  else if (opts.icon === 'warning') console.warn('⚠️', title, text)
+  else console.log('ℹ️', title, text)
+  if (typeof window !== 'undefined' && window.alert) window.alert(msg || 'Ação executada.')
 }
 
-const API_URL = process.env.VUE_APP_API_URL;
+const API_URL = process.env.VUE_APP_API_URL
 
 export default {
   name: 'UserSchedule',
-  data() {
+  data () {
     return {
       selectedDate: null,
       selectedTime: '',
-      selectedService: '',
-      servicos: [],
-      bookedTimes: [],      // sempre no formato HH:mm
+      selectedService: null,        // <- agora number/null
+      servicos: [],                 // [{ id, label, preco }]
+      bookedTimes: [],
       availableTimes: [],
       allTimes: this.generateTimeSlots('07:00', '18:00', 30),
       calendarAttributes: [
@@ -112,195 +104,153 @@ export default {
           customData: { disabled: true },
         },
       ],
-    };
+    }
   },
   computed: {
-    formattedDate() {
-      if (this.selectedDate) {
-        const date = new Date(this.selectedDate);
-        return `${String(date.getDate()).padStart(2, '0')}/${String(
-            date.getMonth() + 1
-        ).padStart(2, '0')}/${date.getFullYear()}`;
-      }
-      return null;
+    formattedDate () {
+      if (!this.selectedDate) return null
+      const d = new Date(this.selectedDate)
+      const dd = String(d.getDate()).padStart(2, '0')
+      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const yyyy = d.getFullYear()
+      return `${dd}/${mm}/${yyyy}`
     },
   },
-  mounted() {
-    this.fetchServicos();
+  mounted () {
+    this.fetchServicos()
   },
   methods: {
-    async fetchServicos() {
-      const token = localStorage.getItem('auth_token');
+    async fetchServicos () {
+      const token = localStorage.getItem('auth_token')
       try {
         const res = await fetch(`${API_URL}/agendar-corte/servicos`, {
           headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await res.json();
-        this.servicos = data.servicos || [];
-      } catch (error) {
-        console.error('Erro ao buscar serviços:', error);
-        notify({ icon: 'error', title: 'Erro', text: 'Não foi possível carregar os serviços.' });
+        })
+        const raw = await res.json()
+
+        // normaliza: aceita {servicos:[...]} | [...] | {data:[...]}
+        const lista = Array.isArray(raw)
+            ? raw
+            : (Array.isArray(raw?.servicos) ? raw.servicos : (Array.isArray(raw?.data) ? raw.data : []))
+
+        this.servicos = lista.map(s => ({
+          id: Number(s.id),
+          label: s.servico ?? s.nome ?? s.name ?? 'Serviço',
+          preco: Number(s.preco ?? 0),
+        }))
+      } catch (err) {
+        console.error('Erro ao buscar serviços:', err)
+        notify({ icon: 'error', title: 'Erro', text: 'Não foi possível carregar os serviços.' })
+        this.servicos = []
       }
     },
 
-    generateTimeSlots(start, end, interval) {
-      const times = [];
-      let currentTime = new Date(`1970-01-01T${start}:00`);
-      const endTime = new Date(`1970-01-01T${end}:00`);
-      while (currentTime <= endTime) {
-        const hours = String(currentTime.getHours()).padStart(2, '0');
-        const minutes = String(currentTime.getMinutes()).padStart(2, '0');
-        times.push(`${hours}:${minutes}`);
-        currentTime.setMinutes(currentTime.getMinutes() + interval);
+    generateTimeSlots (start, end, interval) {
+      const times = []
+      let t = new Date(`1970-01-01T${start}:00`)
+      const endT = new Date(`1970-01-01T${end}:00`)
+      while (t <= endT) {
+        const hh = String(t.getHours()).padStart(2, '0')
+        const mm = String(t.getMinutes()).padStart(2, '0')
+        times.push(`${hh}:${mm}`)
+        t.setMinutes(t.getMinutes() + interval)
       }
-      return times;
+      return times
     },
 
-    validateSelectedTime() {
-      if (this.bookedTimes.includes(this.selectedTime)) {
-        notify({
-          icon: 'warning',
-          title: 'Horário Indisponível',
-          text: 'Este horário já está agendado. Por favor, escolha outro.',
-        });
-        this.selectedTime = '';
-      }
-    },
-
-    async onDayClick(day) {
+    async onDayClick (day) {
       if (day.date.getDay() === 0) {
-        notify({
-          icon: 'error',
-          title: 'Domingo Indisponível',
-          text: 'Domingos não estão disponíveis para agendamento.',
-        });
-        return;
+        notify({ icon: 'error', title: 'Domingo Indisponível', text: 'Domingos não estão disponíveis para agendamento.' })
+        return
       }
-      this.selectedDate = day.date;
-      await this.fetchBookedTimes();
+      this.selectedDate = day.date
+      await this.fetchBookedTimes()
     },
 
-    async fetchBookedTimes() {
-      if (!this.selectedDate) return;
+    async fetchBookedTimes () {
+      if (!this.selectedDate) return
+      this.selectedTime = ''
 
-      this.selectedTime = '';
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('auth_token')
       if (!token) {
-        notify({
-          icon: 'error',
-          title: 'Erro de Autenticação',
-          text: 'Usuário não autenticado. Por favor, faça login novamente.',
-        });
-        return;
+        notify({ icon: 'error', title: 'Erro de Autenticação', text: 'Faça login novamente.' })
+        return
       }
 
-      const formattedDate = new Date(this.selectedDate).toISOString().split('T')[0];
-
+      const d = new Date(this.selectedDate).toISOString().split('T')[0]
       try {
-        const response = await fetch(`${API_URL}/agendar-corte/${formattedDate}`, {
-          method: 'GET',
+        const r = await fetch(`${API_URL}/agendar-corte/${d}`, {
           headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json();
-        if (response.ok) {
-          // normaliza para HH:mm
-          this.bookedTimes = (data.bookedTimes || []).map(t =>
+        })
+        const json = await r.json()
+        if (r.ok) {
+          this.bookedTimes = (json.bookedTimes || []).map(t =>
               typeof t === 'string' && t.length >= 5 ? t.slice(0, 5) : String(t)
-          );
+          )
         } else {
-          notify({ icon: 'error', title: 'Erro', text: data.message || 'Erro ao buscar horários.' });
+          notify({ icon: 'error', title: 'Erro', text: json.message || 'Erro ao buscar horários.' })
         }
-      } catch (error) {
-        console.error('Erro ao buscar horários agendados:', error);
-        notify({
-          icon: 'error',
-          title: 'Erro',
-          text: 'Erro ao conectar com o servidor. Tente novamente mais tarde.',
-        });
+      } catch (e) {
+        console.error('Erro ao buscar horários agendados:', e)
+        notify({ icon: 'error', title: 'Erro', text: 'Falha ao conectar com o servidor.' })
       }
     },
 
-    async scheduleEvent() {
-      if (!this.selectedDate || !this.selectedTime || !this.selectedService) {
-        notify({
-          icon: 'warning',
-          title: 'Dados Incompletos',
-          text: 'Por favor, selecione data, horário e serviço.',
-        });
-        return;
+    async scheduleEvent () {
+      if (!this.selectedDate || !this.selectedTime || this.selectedService == null) {
+        notify({ icon: 'warning', title: 'Dados Incompletos', text: 'Selecione data, horário e serviço.' })
+        return
       }
-
-      const token = localStorage.getItem('auth_token');
+      const token = localStorage.getItem('auth_token')
       if (!token) {
-        notify({
-          icon: 'error',
-          title: 'Erro de Autenticação',
-          text: 'Usuário não autenticado. Por favor, faça login novamente.',
-        });
-        return;
+        notify({ icon: 'error', title: 'Erro de Autenticação', text: 'Faça login novamente.' })
+        return
       }
 
-      const formattedDate = new Date(this.selectedDate).toISOString().split('T')[0];
-
+      const d = new Date(this.selectedDate).toISOString().split('T')[0]
       try {
-        const response = await fetch(`${API_URL}/agendar-corte`, {
+        const r = await fetch(`${API_URL}/agendar-corte`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            data_agendamento: formattedDate,
+            data_agendamento: d,
             hora_agendamento: this.selectedTime,
-            servico_id: this.selectedService,
+            servico_id: this.selectedService, // agora number
           }),
-        });
-
-        const data = await response.json();
-
-        if (response.ok) {
-          // Recarrega horários ocupados já normalizados
-          await this.fetchBookedTimes();
-          this.selectedTime = '';
-
-          notify({
-            icon: 'success',
-            title: 'Sucesso',
-            text: data.message || 'Agendamento salvo com sucesso!',
-          });
+        })
+        const json = await r.json()
+        if (r.ok) {
+          await this.fetchBookedTimes()
+          this.selectedTime = ''
+          notify({ icon: 'success', title: 'Sucesso', text: json.message || 'Agendamento salvo com sucesso!' })
         } else {
-          if (response.status === 422 && data.errors) {
-            const firstErr = Object.values(data.errors)[0];
-            const errorMsg = Array.isArray(firstErr) ? firstErr[0] : firstErr;
-            notify({ icon: 'error', title: 'Erro de Validação', text: errorMsg || 'Dados inválidos.' });
+          if (r.status === 422 && json.errors) {
+            const first = Object.values(json.errors)[0]
+            notify({ icon: 'error', title: 'Erro de Validação', text: Array.isArray(first) ? first[0] : (first || 'Dados inválidos.') })
           } else {
-            notify({ icon: 'error', title: 'Erro', text: data.message || 'Erro ao salvar o agendamento.' });
+            notify({ icon: 'error', title: 'Erro', text: json.message || 'Erro ao salvar o agendamento.' })
           }
         }
-      } catch (error) {
-        console.error('Erro ao salvar agendamento:', error);
-        notify({ icon: 'error', title: 'Erro', text: 'Erro ao conectar com o servidor.' });
+      } catch (e) {
+        console.error('Erro ao salvar agendamento:', e)
+        notify({ icon: 'error', title: 'Erro', text: 'Erro ao conectar com o servidor.' })
       }
     },
   },
   watch: {
-    selectedTime(newVal) {
-      if (this.bookedTimes.includes(newVal)) {
-        this.selectedTime = '';
-        notify({
-          icon: 'warning',
-          title: 'Horário Indisponível',
-          text: 'Esse horário já está agendado. Por favor, selecione outro.',
-        });
+    selectedTime (v) {
+      if (this.bookedTimes.includes(v)) {
+        this.selectedTime = ''
+        notify({ icon: 'warning', title: 'Horário Indisponível', text: 'Esse horário já está agendado. Escolha outro.' })
       }
     },
   },
-};
+}
 </script>
 
 <style scoped>
-.container {
-  max-width: 600px;
-  margin: auto;
-}
+.container { max-width: 600px; margin: auto; }
 </style>
