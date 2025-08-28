@@ -1,16 +1,29 @@
 <template>
   <div class="container mx-auto p-4">
     <h1 class="text-2xl font-bold mb-4">Agendar Serviço</h1>
+
     <div class="calendar-container">
-      <!-- Calendário -->
       <vc-calendar
           v-model="selectedDate"
+          :initial-page="initialPage"
           is-expanded
           color="blue"
           locale="pt-BR"
+          :disabled-dates="[{ weekdays: [0] }]"
+          :attributes="calendarAttrs"
           @dayclick="onDayClick"
-          :attributes="calendarAttributes"
-      />
+      >
+        <!-- Popover do dia -->
+        <template #day-popover="{ day }">
+          <div v-if="day?.date && day.date.getDay() === 0">
+            <div class="font-semibold">Sem atendimento</div>
+            <div class="text-xs text-gray-500">Domingos estão indisponíveis</div>
+          </div>
+          <div v-else>
+            <div class="text-sm">{{ formatFull(day.date) }}</div>
+          </div>
+        </template>
+      </vc-calendar>
 
       <!-- Linha com horário e serviço -->
       <div class="mt-4 flex space-x-4">
@@ -39,11 +52,7 @@
               required
           >
             <option disabled :value="null">Selecione o serviço</option>
-            <option
-                v-for="s in servicos"
-                :key="s.id"
-                :value="s.id"
-            >
+            <option v-for="s in servicos" :key="s.id" :value="s.id">
               {{ s.label }}
             </option>
           </select>
@@ -64,7 +73,7 @@
           @click="scheduleEvent"
           class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 transition"
       >
-        Agendar Evento
+        Agendar
       </button>
     </div>
   </div>
@@ -72,7 +81,10 @@
 
 <script>
 function notify (opts = {}) {
-  const hasSwal = typeof window !== 'undefined' && window.Swal && typeof window.Swal.fire === 'function'
+  const hasSwal =
+      typeof window !== 'undefined' &&
+      window.Swal &&
+      typeof window.Swal.fire === 'function'
   if (hasSwal) return window.Swal.fire(opts)
   const title = opts.title || ''
   const text  = opts.text  || ''
@@ -87,26 +99,42 @@ const API_URL = process.env.VUE_APP_API_URL
 
 export default {
   name: 'UserSchedule',
+
   data () {
+    const today = new Date()
     return {
-      selectedDate: null,
+      today,
+      selectedDate: new Date(),
       selectedTime: '',
-      selectedService: null,        // <- agora number/null
-      servicos: [],                 // [{ id, label, preco }]
+      selectedService: null,
+      servicos: [],
       bookedTimes: [],
       availableTimes: [],
       allTimes: this.generateTimeSlots('07:00', '18:00', 30),
-      calendarAttributes: [
+
+      calendarAttrs: [
         {
-          key: 'disable-sundays',
-          dates: { weekdays: [0] },
-          popover: { label: 'Domingos estão indisponíveis' },
-          customData: { disabled: true },
+          key: 'all-days-pop',
+          dates: { start: new Date(2000, 0, 1), end: new Date(2100, 0, 1) },
+          popover: { visibility: 'hover' }
         },
-      ],
+        {
+          key: 'sunday-pop',
+          dates: { weekdays: [0] },
+          popover: { visibility: 'hover' }
+        }
+      ]
     }
   },
+
   computed: {
+    initialPage () {
+      return {
+        month: this.today.getMonth() + 1,
+        year: this.today.getFullYear()
+      }
+    },
+
     formattedDate () {
       if (!this.selectedDate) return null
       const d = new Date(this.selectedDate)
@@ -114,21 +142,23 @@ export default {
       const mm = String(d.getMonth() + 1).padStart(2, '0')
       const yyyy = d.getFullYear()
       return `${dd}/${mm}/${yyyy}`
-    },
+    }
   },
+
   mounted () {
     this.fetchServicos()
+    this.fetchBookedTimes()
   },
+
   methods: {
     async fetchServicos () {
       const token = localStorage.getItem('auth_token')
       try {
         const res = await fetch(`${API_URL}/agendar-corte/servicos`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` }
         })
         const raw = await res.json()
 
-        // normaliza: aceita {servicos:[...]} | [...] | {data:[...]}
         const lista = Array.isArray(raw)
             ? raw
             : (Array.isArray(raw?.servicos) ? raw.servicos : (Array.isArray(raw?.data) ? raw.data : []))
@@ -136,13 +166,22 @@ export default {
         this.servicos = lista.map(s => ({
           id: Number(s.id),
           label: s.servico ?? s.nome ?? s.name ?? 'Serviço',
-          preco: Number(s.preco ?? 0),
+          preco: Number(s.preco ?? 0)
         }))
       } catch (err) {
         console.error('Erro ao buscar serviços:', err)
         notify({ icon: 'error', title: 'Erro', text: 'Não foi possível carregar os serviços.' })
         this.servicos = []
       }
+    },
+
+    formatFull (date) {
+      return date.toLocaleDateString('pt-BR', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      })
     },
 
     generateTimeSlots (start, end, interval) {
@@ -160,7 +199,11 @@ export default {
 
     async onDayClick (day) {
       if (day.date.getDay() === 0) {
-        notify({ icon: 'error', title: 'Domingo Indisponível', text: 'Domingos não estão disponíveis para agendamento.' })
+        notify({
+          icon: 'error',
+          title: 'Domingo Indisponível',
+          text: 'Domingos não estão disponíveis para agendamento.'
+        })
         return
       }
       this.selectedDate = day.date
@@ -180,7 +223,7 @@ export default {
       const d = new Date(this.selectedDate).toISOString().split('T')[0]
       try {
         const r = await fetch(`${API_URL}/agendar-corte/${d}`, {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${token}` }
         })
         const json = await r.json()
         if (r.ok) {
@@ -201,6 +244,7 @@ export default {
         notify({ icon: 'warning', title: 'Dados Incompletos', text: 'Selecione data, horário e serviço.' })
         return
       }
+
       const token = localStorage.getItem('auth_token')
       if (!token) {
         notify({ icon: 'error', title: 'Erro de Autenticação', text: 'Faça login novamente.' })
@@ -213,15 +257,16 @@ export default {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({
             data_agendamento: d,
             hora_agendamento: this.selectedTime,
-            servico_id: this.selectedService, // agora number
-          }),
+            servico_id: this.selectedService
+          })
         })
         const json = await r.json()
+
         if (r.ok) {
           await this.fetchBookedTimes()
           this.selectedTime = ''
@@ -229,7 +274,8 @@ export default {
         } else {
           if (r.status === 422 && json.errors) {
             const first = Object.values(json.errors)[0]
-            notify({ icon: 'error', title: 'Erro de Validação', text: Array.isArray(first) ? first[0] : (first || 'Dados inválidos.') })
+            const msg = Array.isArray(first) ? first[0] : (first || 'Dados inválidos.')
+            notify({ icon: 'error', title: 'Erro de Validação', text: msg })
           } else {
             notify({ icon: 'error', title: 'Erro', text: json.message || 'Erro ao salvar o agendamento.' })
           }
@@ -238,19 +284,42 @@ export default {
         console.error('Erro ao salvar agendamento:', e)
         notify({ icon: 'error', title: 'Erro', text: 'Erro ao conectar com o servidor.' })
       }
-    },
+    }
   },
+
   watch: {
     selectedTime (v) {
       if (this.bookedTimes.includes(v)) {
         this.selectedTime = ''
-        notify({ icon: 'warning', title: 'Horário Indisponível', text: 'Esse horário já está agendado. Escolha outro.' })
+        notify({
+          icon: 'warning',
+          title: 'Horário Indisponível',
+          text: 'Esse horário já está agendado. Escolha outro.'
+        })
       }
-    },
-  },
+    }
+  }
 }
 </script>
 
 <style scoped>
 .container { max-width: 600px; margin: auto; }
+
+:deep(.vc-day:not(.is-disabled) .vc-day-content) {
+  color: #111827; /* tailwind gray-900 */
+}
+
+:deep(.vc-day.is-disabled .vc-day-content) {
+  color: #9ca3af !important;
+  opacity: 1;
+}
+
+:deep(.vc-day.is-disabled) {
+  cursor: default;
+}
+
+:deep(.vc-highlight) {
+  background: transparent !important;
+}
 </style>
+

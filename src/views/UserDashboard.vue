@@ -53,8 +53,8 @@ export default {
   data() {
     return {
       userName: '',
-      userRole: '',     // sempre sobreposto pelo /api/me quando possível
-      authReady: false, // true quando já temos token aplicado
+      userRole: '',
+      authReady: false,
     }
   },
 
