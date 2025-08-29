@@ -1,14 +1,17 @@
-const api = {
-    fire: async (opts = {}) => {
-        if (typeof window !== 'undefined') {
-            const title = opts.title || 'Ação';
-            const text = opts.text || '';
-            const msg = [title, text].filter(Boolean).join('\n');
-            try { window.alert(msg || 'Ação executada.'); } catch (_) {}
-        }
-        return { isConfirmed: true, isDismissed: false, isDenied: false };
-    },
-};
+import {noop} from "chart.js/helpers";
 
-export default api;
-export const fire = api.fire;
+const EmptySwal = {
+    fire(opts = {}) {
+        try {
+            const title = opts?.title || ''
+            const text  = opts?.text || ''
+            const msg = [title, text].filter(Boolean).join('\n') || 'Ação executada.'
+            if (typeof window !== 'undefined' && window.alert) {
+                window.alert(msg)
+            }
+        } catch (e) { noop(e)}
+        return Promise.resolve({ isConfirmed: true })
+    }
+}
+
+export default EmptySwal

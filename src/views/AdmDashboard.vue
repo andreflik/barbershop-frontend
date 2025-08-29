@@ -34,43 +34,30 @@
 </template>
 
 <script>
-import api from '@/services/api';
+import api from '@/services/api'
 
 export default {
   name: 'AdmDashboard',
   methods: {
     async logout() {
       try {
-        await api.post('/logout');
+        await api.post('/logout')
       } catch (e) {
         if (process.env.NODE_ENV !== 'production') {
-          // eslint-disable-next-line no-console
-          console.debug('[logout] ignorando erro do /logout', e?.message || e);
+          console.debug('[logout] erro ignorado', e?.message || e)
         }
       } finally {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user_role');
-        localStorage.removeItem('user_name');
-        this.$router.push('/').catch((err) => {
-          if (process.env.NODE_ENV !== 'production') {
-            // eslint-disable-next-line no-console
-            console.debug('[router] push / falhou (ignorado)', err?.message || err);
-          }
-          return null;
-        });
+        localStorage.removeItem('auth_token')
+        localStorage.removeItem('user_role')
+        localStorage.removeItem('user_name')
+        this.$router.push('/').catch(() => {})
       }
     },
     goUser() {
-      this.$router.push('/dashboard').catch((err) => {
-        if (process.env.NODE_ENV !== 'production') {
-          // eslint-disable-next-line no-console
-          console.debug('[router] push /dashboard falhou (ignorado)', err?.message || err);
-        }
-        return null;
-      });
+      this.$router.push('/dashboard').catch(() => {})
     }
   }
-};
+}
 </script>
 
 <style scoped>

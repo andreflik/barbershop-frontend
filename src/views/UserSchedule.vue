@@ -27,7 +27,6 @@
 
       <!-- Linha com horário e serviço -->
       <div class="mt-4 flex space-x-4">
-        <!-- Horário -->
         <div class="w-1/2">
           <label class="block text-sm font-medium mb-1">Horário</label>
           <select v-model="selectedTime" class="border rounded w-full px-2 py-1 text-sm" required>
@@ -43,7 +42,6 @@
           </select>
         </div>
 
-        <!-- Serviço -->
         <div class="w-1/2">
           <label class="block text-sm font-medium mb-1">Serviço</label>
           <select
@@ -59,7 +57,6 @@
         </div>
       </div>
 
-      <!-- Escolhas -->
       <div class="mt-4">
         <h2 class="text-lg font-semibold mb-2">Data e Horário Selecionados</h2>
         <p>
@@ -68,7 +65,6 @@
         </p>
       </div>
 
-      <!-- Ação -->
       <button
           @click="scheduleEvent"
           class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 transition"
@@ -80,22 +76,29 @@
 </template>
 
 <script>
-function notify (opts = {}) {
-  const hasSwal =
-      typeof window !== 'undefined' &&
-      window.Swal &&
-      typeof window.Swal.fire === 'function'
-  if (hasSwal) return window.Swal.fire(opts)
-  const title = opts.title || ''
-  const text  = opts.text  || ''
-  const msg   = [title, text].filter(Boolean).join('\n')
-  if (opts.icon === 'error') console.error('❌', title, text)
-  else if (opts.icon === 'warning') console.warn('⚠️', title, text)
-  else console.log('ℹ️', title, text)
-  if (typeof window !== 'undefined' && window.alert) window.alert(msg || 'Ação executada.')
-}
+import { toastError, toastWarning, toastSuccess } from '@/plugins/alerts'
 
 const API_URL = process.env.VUE_APP_API_URL
+
+// Tradutor simples de mensagens de validação vindas do backend (inglês -> PT-BR)
+const translateValidation = (msg = '') => {
+  const lower = String(msg).toLowerCase()
+
+  // Casos comuns
+  if (lower.includes('must be a date after or equal to today')) {
+    return 'A data de agendamento deve ser hoje ou uma data futura.'
+  }
+  if (lower.includes('must be a date after today')) {
+    return 'A data de agendamento deve ser uma data futura.'
+  }
+  if (lower.includes('is required')) {
+    return 'Campo obrigatório.'
+  }
+  if (lower.includes('must be a valid date')) {
+    return 'Informe uma data válida.'
+  }
+  return msg || 'Dados inválidos.'
+}
 
 export default {
   name: 'UserSchedule',
@@ -111,35 +114,22 @@ export default {
       bookedTimes: [],
       availableTimes: [],
       allTimes: this.generateTimeSlots('07:00', '18:00', 30),
-
       calendarAttrs: [
-        {
-          key: 'all-days-pop',
-          dates: { start: new Date(2000, 0, 1), end: new Date(2100, 0, 1) },
-          popover: { visibility: 'hover' }
-        },
-        {
-          key: 'sunday-pop',
-          dates: { weekdays: [0] },
-          popover: { visibility: 'hover' }
-        }
+        { key: 'all-days-pop', dates: { start: new Date(2000,0,1), end: new Date(2100,0,1) }, popover: { visibility: 'hover' } },
+        { key: 'sunday-pop',  dates: { weekdays: [0] }, popover: { visibility: 'hover' } }
       ]
     }
   },
 
   computed: {
     initialPage () {
-      return {
-        month: this.today.getMonth() + 1,
-        year: this.today.getFullYear()
-      }
+      return { month: this.today.getMonth() + 1, year: this.today.getFullYear() }
     },
-
     formattedDate () {
       if (!this.selectedDate) return null
       const d = new Date(this.selectedDate)
-      const dd = String(d.getDate()).padStart(2, '0')
-      const mm = String(d.getMonth() + 1).padStart(2, '0')
+      const dd = String(d.getDate()).padStart(2,'0')
+      const mm = String(d.getMonth()+1).padStart(2,'0')
       const yyyy = d.getFullYear()
       return `${dd}/${mm}/${yyyy}`
     }
@@ -158,30 +148,20 @@ export default {
           headers: { Authorization: `Bearer ${token}` }
         })
         const raw = await res.json()
-
-        const lista = Array.isArray(raw)
-            ? raw
-            : (Array.isArray(raw?.servicos) ? raw.servicos : (Array.isArray(raw?.data) ? raw.data : []))
-
+        const lista = Array.isArray(raw) ? raw : (Array.isArray(raw?.servicos) ? raw.servicos : (Array.isArray(raw?.data) ? raw.data : []))
         this.servicos = lista.map(s => ({
           id: Number(s.id),
           label: s.servico ?? s.nome ?? s.name ?? 'Serviço',
           preco: Number(s.preco ?? 0)
         }))
-      } catch (err) {
-        console.error('Erro ao buscar serviços:', err)
-        notify({ icon: 'error', title: 'Erro', text: 'Não foi possível carregar os serviços.' })
+      } catch {
+        toastError('Não foi possível carregar os serviços.')
         this.servicos = []
       }
     },
 
     formatFull (date) {
-      return date.toLocaleDateString('pt-BR', {
-        weekday: 'long',
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric'
-      })
+      return date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
     },
 
     generateTimeSlots (start, end, interval) {
@@ -189,8 +169,8 @@ export default {
       let t = new Date(`1970-01-01T${start}:00`)
       const endT = new Date(`1970-01-01T${end}:00`)
       while (t <= endT) {
-        const hh = String(t.getHours()).padStart(2, '0')
-        const mm = String(t.getMinutes()).padStart(2, '0')
+        const hh = String(t.getHours()).padStart(2,'0')
+        const mm = String(t.getMinutes()).padStart(2,'0')
         times.push(`${hh}:${mm}`)
         t.setMinutes(t.getMinutes() + interval)
       }
@@ -199,11 +179,7 @@ export default {
 
     async onDayClick (day) {
       if (day.date.getDay() === 0) {
-        notify({
-          icon: 'error',
-          title: 'Domingo Indisponível',
-          text: 'Domingos não estão disponíveis para agendamento.'
-        })
+        toastError('Domingos não estão disponíveis para agendamento.')
         return
       }
       this.selectedDate = day.date
@@ -216,7 +192,7 @@ export default {
 
       const token = localStorage.getItem('auth_token')
       if (!token) {
-        notify({ icon: 'error', title: 'Erro de Autenticação', text: 'Faça login novamente.' })
+        toastError('Faça login novamente.')
         return
       }
 
@@ -228,26 +204,25 @@ export default {
         const json = await r.json()
         if (r.ok) {
           this.bookedTimes = (json.bookedTimes || []).map(t =>
-              typeof t === 'string' && t.length >= 5 ? t.slice(0, 5) : String(t)
+              typeof t === 'string' && t.length >= 5 ? t.slice(0,5) : String(t)
           )
         } else {
-          notify({ icon: 'error', title: 'Erro', text: json.message || 'Erro ao buscar horários.' })
+          toastError(json.message || 'Erro ao buscar horários.')
         }
-      } catch (e) {
-        console.error('Erro ao buscar horários agendados:', e)
-        notify({ icon: 'error', title: 'Erro', text: 'Falha ao conectar com o servidor.' })
+      } catch {
+        toastError('Falha ao conectar com o servidor.')
       }
     },
 
     async scheduleEvent () {
       if (!this.selectedDate || !this.selectedTime || this.selectedService == null) {
-        notify({ icon: 'warning', title: 'Dados Incompletos', text: 'Selecione data, horário e serviço.' })
+        toastWarning('Selecione data, horário e serviço.')
         return
       }
 
       const token = localStorage.getItem('auth_token')
       if (!token) {
-        notify({ icon: 'error', title: 'Erro de Autenticação', text: 'Faça login novamente.' })
+        toastError('Faça login novamente.')
         return
       }
 
@@ -255,10 +230,7 @@ export default {
       try {
         const r = await fetch(`${API_URL}/agendar-corte`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({
             data_agendamento: d,
             hora_agendamento: this.selectedTime,
@@ -270,19 +242,23 @@ export default {
         if (r.ok) {
           await this.fetchBookedTimes()
           this.selectedTime = ''
-          notify({ icon: 'success', title: 'Sucesso', text: json.message || 'Agendamento salvo com sucesso!' })
-        } else {
-          if (r.status === 422 && json.errors) {
-            const first = Object.values(json.errors)[0]
-            const msg = Array.isArray(first) ? first[0] : (first || 'Dados inválidos.')
-            notify({ icon: 'error', title: 'Erro de Validação', text: msg })
+          toastSuccess(json.message || 'Agendamento salvo com sucesso!')
+        } else if (r.status === 422 && json.errors) {
+          const errs = json.errors || {}
+
+          // Se o backend indicou erro diretamente em data_agendamento, usa PT-BR explícito
+          if (errs.data_agendamento && errs.data_agendamento.length) {
+            toastError('A data de agendamento deve ser hoje ou uma data futura.')
           } else {
-            notify({ icon: 'error', title: 'Erro', text: json.message || 'Erro ao salvar o agendamento.' })
+            const first = Object.values(errs)[0]
+            const raw = Array.isArray(first) ? first[0] : (first || 'Dados inválidos.')
+            toastError(translateValidation(raw))
           }
+        } else {
+          toastError(json.message || 'Erro ao salvar o agendamento.')
         }
-      } catch (e) {
-        console.error('Erro ao salvar agendamento:', e)
-        notify({ icon: 'error', title: 'Erro', text: 'Erro ao conectar com o servidor.' })
+      } catch {
+        toastError('Erro ao conectar com o servidor.')
       }
     }
   },
@@ -291,11 +267,7 @@ export default {
     selectedTime (v) {
       if (this.bookedTimes.includes(v)) {
         this.selectedTime = ''
-        notify({
-          icon: 'warning',
-          title: 'Horário Indisponível',
-          text: 'Esse horário já está agendado. Escolha outro.'
-        })
+        toastWarning('Esse horário já está agendado. Escolha outro.')
       }
     }
   }
@@ -304,22 +276,8 @@ export default {
 
 <style scoped>
 .container { max-width: 600px; margin: auto; }
-
-:deep(.vc-day:not(.is-disabled) .vc-day-content) {
-  color: #111827; /* tailwind gray-900 */
-}
-
-:deep(.vc-day.is-disabled .vc-day-content) {
-  color: #9ca3af !important;
-  opacity: 1;
-}
-
-:deep(.vc-day.is-disabled) {
-  cursor: default;
-}
-
-:deep(.vc-highlight) {
-  background: transparent !important;
-}
+:deep(.vc-day:not(.is-disabled) .vc-day-content) { color: #111827; }
+:deep(.vc-day.is-disabled .vc-day-content) { color: #9ca3af !important; opacity: 1; }
+:deep(.vc-day.is-disabled) { cursor: default; }
+:deep(.vc-highlight) { background: transparent !important; }
 </style>
-

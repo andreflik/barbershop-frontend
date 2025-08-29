@@ -4,7 +4,7 @@
 
     <div class="flex items-center gap-2">
       <input v-model="q" placeholder="Buscar..." class="border p-2 rounded" />
-      <button @click="fetchServicos" class="bg-blue-600 text-white px-4 py-2 rounded">Buscar</button>
+      <button @click="fetchServicos" :disabled="loading" class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60">Buscar</button>
       <button @click="abrirNovo" class="bg-green-600 text-white px-4 py-2 rounded">Novo</button>
     </div>
 
@@ -31,21 +31,9 @@
     </table>
 
     <div v-if="servicos && (servicos.last_page || 1) > 1" class="flex items-center gap-2">
-      <button
-          :disabled="!servicos.prev_page_url"
-          @click="goto(servicos.current_page - 1)"
-          class="px-3 py-1 border rounded"
-      >
-        Anterior
-      </button>
+      <button :disabled="!servicos.prev_page_url || loading" @click="goto(servicos.current_page - 1)" class="px-3 py-1 border rounded">Anterior</button>
       <span>Página {{ servicos.current_page || 1 }} de {{ servicos.last_page || 1 }}</span>
-      <button
-          :disabled="!servicos.next_page_url"
-          @click="goto(servicos.current_page + 1)"
-          class="px-3 py-1 border rounded"
-      >
-        Próxima
-      </button>
+      <button :disabled="!servicos.next_page_url || loading" @click="goto(servicos.current_page + 1)" class="px-3 py-1 border rounded">Próxima</button>
     </div>
 
     <!-- Modal -->
@@ -54,24 +42,19 @@
         <h3 class="text-xl font-semibold">{{ form.id ? 'Editar' : 'Novo' }} Serviço</h3>
 
         <label class="block text-sm font-medium">Código *</label>
-        <input v-model="form.codigo" placeholder="Ex.: CMQ" class="border p-2 w-full rounded" required />
+        <input v-model.trim="form.codigo" placeholder="Ex.: CMQ" class="border p-2 w-full rounded" required />
 
         <label class="block text-sm font-medium mt-2">Nome do serviço *</label>
-        <input v-model="form.servico" placeholder="Ex.: Corte de Máquina" class="border p-2 w-full rounded" required />
+        <input v-model.trim="form.servico" placeholder="Ex.: Corte de Máquina" class="border p-2 w-full rounded" required />
 
         <label class="block text-sm font-medium mt-2">Preço (R$) *</label>
-        <input
-            v-model.number="form.preco"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Ex.: 30.00"
-            class="border p-2 w-full rounded"
-            required
-        />
+        <input v-model.number="form.preco" type="number" min="0" step="0.01" placeholder="Ex.: 30.00" class="border p-2 w-full rounded" required />
 
         <div class="flex justify-end gap-2 pt-2">
-          <button @click="salvar" class="bg-blue-600 text-white px-4 py-2 rounded">Salvar</button>
+          <button @click="salvar" :disabled="saving" class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60">
+            <span v-if="saving">Salvando…</span>
+            <span v-else>Salvar</span>
+          </button>
           <button @click="fechar" class="border px-4 py-2 rounded">Cancelar</button>
         </div>
       </div>
@@ -80,83 +63,114 @@
 </template>
 
 <script>
-import api from '../axios';
+import api from '@/services/api'
+import { toastSuccess, toastError, toastWarning } from '@/plugins/alerts'
 
 export default {
   name: 'AdminServicos',
   data() {
     return {
       q: '',
-      servicos: {
-        data: [],
-        current_page: 1,
-        last_page: 1,
-        prev_page_url: null,
-        next_page_url: null,
-      },
+      servicos: { data: [], current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null },
       page: 1,
       modal: false,
+      saving: false,
+      loading: false,
       form: { id: null, codigo: '', servico: '', preco: 0 },
-    };
+    }
   },
   mounted() {
-    this.fetchServicos();
+    this.fetchServicos()
   },
   methods: {
     async fetchServicos() {
-      const res = await api.get('/admin/servicos', { params: { q: this.q, page: this.page } });
-      this.servicos = res.data;
+      this.loading = true
+      try {
+        const res = await api.get('/admin/servicos', { params: { q: this.q, page: this.page } })
+        this.servicos = res.data
+      } catch (e) {
+        toastError('Erro ao carregar serviços.')
+        this.servicos = { data: [], current_page: 1, last_page: 1 }
+      } finally {
+        this.loading = false
+      }
     },
     goto(p) {
-      if (!p || p < 1 || (this.servicos.last_page && p > this.servicos.last_page)) return;
-      this.page = p;
-      this.fetchServicos();
+      if (!p || p < 1 || (this.servicos.last_page && p > this.servicos.last_page)) return
+      this.page = p
+      this.fetchServicos()
     },
     abrirNovo() {
-      this.form = { id: null, codigo: '', servico: '', preco: 0 };
-      this.modal = true;
+      this.form = { id: null, codigo: '', servico: '', preco: 0 }
+      this.modal = true
     },
     editar(s) {
-      this.form = {
-        id: s.id,
-        codigo: s.codigo || '',
-        servico: s.servico || '',
-        preco: Number(s.preco ?? 0),
-      };
-      this.modal = true;
+      this.form = { id: s.id, codigo: s.codigo || '', servico: s.servico || '', preco: Number(s.preco ?? 0) }
+      this.modal = true
     },
-    fechar() {
-      this.modal = false;
+    fechar() { this.modal = false },
+
+    async confirmar(texto) {
+      if (window.Swal && typeof window.Swal.fire === 'function') {
+        const { isConfirmed } = await window.Swal.fire({
+          icon: 'question',
+          title: 'Confirmação',
+          text: texto || 'Deseja continuar?',
+          showCancelButton: true,
+          confirmButtonText: 'Sim',
+          cancelButtonText: 'Cancelar'
+        })
+        return isConfirmed
+      }
+      return window.confirm(texto || 'Deseja continuar?')
     },
+
     async salvar() {
       const payload = {
         codigo: (this.form.codigo || '').trim(),
         servico: (this.form.servico || '').trim(),
         preco: Number(this.form.preco ?? 0),
-      };
+      }
 
       if (!payload.codigo || !payload.servico) {
-        alert('Preencha Código e Serviço.');
-        return;
+        toastWarning('Preencha Código e Serviço.')
+        return
       }
 
-      if (this.form.id) {
-        await api.put(`/admin/servicos/${this.form.id}`, payload);
-      } else {
-        await api.post('/admin/servicos', payload);
+      this.saving = true
+      try {
+        if (this.form.id) {
+          await api.put(`/admin/servicos/${this.form.id}`, payload)
+          toastSuccess('Serviço atualizado.')
+        } else {
+          await api.post('/admin/servicos', payload)
+          toastSuccess('Serviço criado.')
+        }
+        this.modal = false
+        this.fetchServicos()
+      } catch (e) {
+        toastError('Falha ao salvar serviço.')
+      } finally {
+        this.saving = false
       }
-      this.modal = false;
-      this.fetchServicos();
     },
+
     async remover(id) {
-      if (!confirm('Excluir este serviço?')) return;
-      await api.delete(`/admin/servicos/${id}`);
-      this.fetchServicos();
+      const ok = await this.confirmar('Excluir este serviço?')
+      if (!ok) return
+      try {
+        await api.delete(`/admin/servicos/${id}`)
+        toastSuccess('Serviço excluído.')
+        this.fetchServicos()
+      } catch (e) {
+        toastError('Falha ao excluir serviço.')
+      }
     },
+
     formatMoney(v) {
-      const n = Number(v ?? 0);
-      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+      const n = Number(v ?? 0)
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n)
     },
   },
-};
+}
 </script>

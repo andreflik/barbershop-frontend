@@ -1,17 +1,39 @@
-import { createApp } from 'vue';
-import App from './App.vue';
-import router from './router/api';
-import './index.css';
+// src/main.js
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router/api'
+import './index.css'
+import Alerts from '@/plugins/alerts'
+import VCalendar from 'v-calendar'
+import 'v-calendar/style.css'
 
-import VCalendar from 'v-calendar';
-import 'v-calendar/style.css';
+// Carrega SweetAlert2 por CDN (garante window.Swal real)
+function loadSwalFromCDN () {
+    if (window.Swal && typeof window.Swal.fire === 'function') return Promise.resolve(window.Swal)
 
-const app = createApp(App);
+    return new Promise((resolve) => {
+        // CSS
+        const css = document.createElement('link')
+        css.rel = 'stylesheet'
+        css.href = 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css'
+        css.onload = () => {}
+        document.head.appendChild(css)
 
-app.use(VCalendar, {
-    componentPrefix: 'vc',
-});
+        // JS
+        const script = document.createElement('script')
+        script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js'
+        script.async = true
+        script.onload = () => resolve(window.Swal)
+        script.onerror = () => resolve(null)
+        document.head.appendChild(script)
+    })
+}
 
-app.use(router);
+// Inicia o app normalmente; o plugin lida com fallback enquanto o CDN carrega
+loadSwalFromCDN()
 
-app.mount('#app');
+const app = createApp(App)
+app.use(Alerts)                             // $swal / $toast
+app.use(router)
+app.use(VCalendar, { componentPrefix: 'vc' })
+app.mount('#app')
