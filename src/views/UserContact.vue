@@ -48,7 +48,7 @@
 </template>
 
 <script>
-import api from '../axios';
+import api from '@/services/api'
 
 export default {
   name: 'UserContact',
@@ -56,27 +56,41 @@ export default {
     return {
       loading: true,
       servicos: [],
-    };
+    }
   },
   async mounted() {
-    await this.fetchServicos();
+    await this.fetchServicos()
   },
   methods: {
     async fetchServicos() {
+      this.loading = true
       try {
-        const { data } = await api.get('/servicos-publicos');
-        this.servicos = Array.isArray(data) ? data : [];
+        // evita cache adicionando um “cache buster” simples
+        const { data } = await api.get('/servicos-publicos', { params: { t: Date.now() } })
+        // esperamos [{ id, servico, preco }]
+        this.servicos = Array.isArray(data) ? data : []
       } catch (e) {
-        console.error('Erro ao carregar serviços:', e);
-        this.servicos = [];
+        // mantém silencioso na UI; logs ajudam no dev
+        if (process.env.NODE_ENV !== 'production') {
+          // eslint-disable-next-line no-console
+          console.error('Erro ao carregar serviços:', e)
+        }
+        this.servicos = []
       } finally {
-        this.loading = false;
+        this.loading = false
       }
     },
     money(v) {
-      const n = Number(v ?? 0);
-      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n);
+      // trata número, string "20.00" e string "20,00"
+      if (v === null || v === undefined) return 'R$ 0,00'
+      const str = String(v).trim()
+      if (str === '') return 'R$ 0,00'
+      const n = Number.isFinite(v)
+          ? v
+          : parseFloat(str.replace(/\./g, '').replace(',', '.')) // "1.234,56" -> 1234.56
+      const safe = Number.isFinite(n) ? n : 0
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(safe)
     },
   },
-};
+}
 </script>
