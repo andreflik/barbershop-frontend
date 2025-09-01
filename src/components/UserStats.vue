@@ -120,6 +120,7 @@ async function confirmDialog({
 
 export default {
   name: 'UserStats',
+  emits: ['loading', 'ready'], // <- Pai controla overlay
   props: {
     authReady: { type: Boolean, default: false }
   },
@@ -130,28 +131,43 @@ export default {
       agendamentosDetalhados: [],
       pagination: { current_page: 1, last_page: 1, total: 0 },
       servicos: [],
-      loading: false
+      loading: false,
+      booting: false
     }
   },
   mounted() {
     this.initAnosDisponiveis()
     this.selectedYear = this.anosDisponiveis[0]
+    // Se já estiver autenticado ao montar, inicia boot
+    if (this.authReady) this.boot()
   },
   watch: {
-    authReady: {
-      immediate: true,
-      async handler(val) {
-        if (val) {
-          await this.fetchServicos()
-          await this.fetchEstatisticas(1)
-        }
+    // Quando autenticar depois do mount, faz o boot inicial
+    authReady(val) {
+      if (val && !this.booting && this.agendamentosDetalhados.length === 0) {
+        this.boot()
       }
     },
+    // Mudar ano recarrega apenas a lista (sem acionar overlay global)
     selectedYear() {
       if (this.authReady) this.fetchEstatisticas(1)
     }
   },
   methods: {
+    async boot() {
+      this.booting = true
+      this.$emit('loading', true) // overlay ON (pai)
+      try {
+        await this.fetchServicos()
+        await this.fetchEstatisticas(1)
+      } finally {
+        await this.$nextTick()
+        this.$emit('ready')        // sinaliza que renderizou
+        this.$emit('loading', false) // overlay OFF (pai)
+        this.booting = false
+      }
+    },
+
     initAnosDisponiveis() {
       const atual = new Date().getFullYear()
       this.anosDisponiveis = Array.from({ length: 5 }, (_, i) => atual - i)
@@ -229,7 +245,7 @@ export default {
     },
 
     goToPage(p) {
-      if (p >= 1 && p <= this.pagination.last_page) {
+      if (!this.loading && p >= 1 && p <= this.pagination.last_page) {
         this.fetchEstatisticas(p)
       }
     },

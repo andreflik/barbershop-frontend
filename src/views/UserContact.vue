@@ -1,16 +1,30 @@
 <template>
-  <div class="min-h-screen bg-gray-100 p-8">
+  <div class="relative min-h-screen bg-gray-100 p-8">
+    <!-- Overlay de carregamento em tela cheia -->
+    <transition name="fade">
+      <div
+          v-if="loading"
+          class="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9999] flex items-center justify-center"
+          role="status"
+          aria-live="polite"
+      >
+        <div class="bg-white p-6 rounded-xl shadow-lg flex items-center gap-3">
+          <div class="h-6 w-6 border-4 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+          <span class="font-medium">Carregando…</span>
+        </div>
+      </div>
+    </transition>
+
     <div class="max-w-xl mx-auto bg-white rounded shadow p-6">
       <h2 class="text-2xl font-bold mb-4 text-center">Tabela de Preços</h2>
 
       <!-- estados -->
-      <div v-if="loading" class="text-center text-gray-500 py-6">Carregando...</div>
-      <div v-else-if="!servicos.length" class="text-center text-gray-500 py-6">
+      <div v-if="!loading && !servicos.length" class="text-center text-gray-500 py-6">
         Nenhum serviço cadastrado.
       </div>
 
       <!-- tabela -->
-      <table v-else class="w-full text-left border-collapse">
+      <table v-else-if="!loading" class="w-full text-left border-collapse">
         <thead>
         <tr>
           <th class="border-b pb-2">Serviço</th>
@@ -70,7 +84,6 @@ export default {
         // esperamos [{ id, servico, preco }]
         this.servicos = Array.isArray(data) ? data : []
       } catch (e) {
-        // mantém silencioso na UI; logs ajudam no dev
         if (process.env.NODE_ENV !== 'production') {
           // eslint-disable-next-line no-console
           console.error('Erro ao carregar serviços:', e)
@@ -94,3 +107,14 @@ export default {
   },
 }
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

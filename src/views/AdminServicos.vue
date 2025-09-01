@@ -1,11 +1,43 @@
 <template>
-  <div class="p-6 space-y-6">
+  <div class="relative min-h-screen p-6 space-y-6">
+    <!-- Overlay de carregamento em tela cheia -->
+    <transition name="fade">
+      <div
+          v-if="loading || saving"
+          class="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9999] flex items-center justify-center"
+          role="status"
+          aria-live="polite"
+      >
+        <div class="bg-white p-6 rounded-xl shadow-lg flex items-center gap-3">
+          <div class="h-6 w-6 border-4 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+          <span class="font-medium">{{ saving ? 'Salvando…' : 'Carregando…' }}</span>
+        </div>
+      </div>
+    </transition>
+
     <h2 class="text-2xl font-bold">Serviços</h2>
 
     <div class="flex items-center gap-2">
-      <input v-model="q" placeholder="Buscar..." class="border p-2 rounded" />
-      <button @click="fetchServicos" :disabled="loading" class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60">Buscar</button>
-      <button @click="abrirNovo" class="bg-green-600 text-white px-4 py-2 rounded">Novo</button>
+      <input
+          v-model="q"
+          placeholder="Buscar..."
+          class="border p-2 rounded"
+          :disabled="loading || saving"
+      />
+      <button
+          @click="fetchServicos"
+          :disabled="loading || saving"
+          class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
+      >
+        Buscar
+      </button>
+      <button
+          @click="abrirNovo"
+          :disabled="loading || saving"
+          class="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-60"
+      >
+        Novo
+      </button>
     </div>
 
     <table class="w-full table-auto">
@@ -18,44 +50,112 @@
       </tr>
       </thead>
       <tbody>
-      <tr v-for="s in servicos.data" :key="s.id" class="border-b">
+      <tr
+          v-for="s in (servicos.data || [])"
+          :key="s.id"
+          class="border-b"
+      >
         <td class="px-4 py-2">{{ s.codigo }}</td>
         <td class="px-4 py-2">{{ s.servico }}</td>
         <td class="px-4 py-2">{{ formatMoney(s.preco) }}</td>
         <td class="px-4 py-2 text-right space-x-2">
-          <button @click="editar(s)" class="px-3 py-1 bg-yellow-500 text-white rounded">Editar</button>
-          <button @click="remover(s.id)" class="px-3 py-1 bg-red-600 text-white rounded">Excluir</button>
+          <button
+              @click="editar(s)"
+              :disabled="saving || loading"
+              class="px-3 py-1 bg-yellow-500 text-white rounded disabled:opacity-60"
+          >
+            Editar
+          </button>
+          <button
+              @click="remover(s.id)"
+              :disabled="saving || loading"
+              class="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-60"
+          >
+            Excluir
+          </button>
         </td>
+      </tr>
+      <tr v-if="!loading && (!servicos.data || !servicos.data.length)">
+        <td colspan="4" class="text-center text-gray-500 py-4">Sem dados</td>
       </tr>
       </tbody>
     </table>
 
-    <div v-if="servicos && (servicos.last_page || 1) > 1" class="flex items-center gap-2">
-      <button :disabled="!servicos.prev_page_url || loading" @click="goto(servicos.current_page - 1)" class="px-3 py-1 border rounded">Anterior</button>
+    <div
+        v-if="servicos && (servicos.last_page || 1) > 1"
+        class="flex items-center gap-2"
+    >
+      <button
+          :disabled="!servicos.prev_page_url || loading || saving"
+          @click="goto(servicos.current_page - 1)"
+          class="px-3 py-1 border rounded disabled:opacity-60"
+      >
+        Anterior
+      </button>
       <span>Página {{ servicos.current_page || 1 }} de {{ servicos.last_page || 1 }}</span>
-      <button :disabled="!servicos.next_page_url || loading" @click="goto(servicos.current_page + 1)" class="px-3 py-1 border rounded">Próxima</button>
+      <button
+          :disabled="!servicos.next_page_url || loading || saving"
+          @click="goto(servicos.current_page + 1)"
+          class="px-3 py-1 border rounded disabled:opacity-60"
+      >
+        Próxima
+      </button>
     </div>
 
     <!-- Modal -->
-    <div v-if="modal" class="fixed inset-0 bg-black/30 flex items-center justify-center">
+    <div
+        v-if="modal"
+        class="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+    >
       <div class="bg-white p-6 rounded-xl space-y-4 w-full max-w-md">
         <h3 class="text-xl font-semibold">{{ form.id ? 'Editar' : 'Novo' }} Serviço</h3>
 
         <label class="block text-sm font-medium">Código *</label>
-        <input v-model.trim="form.codigo" placeholder="Ex.: CMQ" class="border p-2 w-full rounded" required />
+        <input
+            v-model.trim="form.codigo"
+            placeholder="Ex.: CMQ"
+            class="border p-2 w-full rounded"
+            required
+            :disabled="saving"
+        />
 
         <label class="block text-sm font-medium mt-2">Nome do serviço *</label>
-        <input v-model.trim="form.servico" placeholder="Ex.: Corte de Máquina" class="border p-2 w-full rounded" required />
+        <input
+            v-model.trim="form.servico"
+            placeholder="Ex.: Corte de Máquina"
+            class="border p-2 w-full rounded"
+            required
+            :disabled="saving"
+        />
 
         <label class="block text-sm font-medium mt-2">Preço (R$) *</label>
-        <input v-model.number="form.preco" type="number" min="0" step="0.01" placeholder="Ex.: 30.00" class="border p-2 w-full rounded" required />
+        <input
+            v-model.number="form.preco"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Ex.: 30.00"
+            class="border p-2 w-full rounded"
+            required
+            :disabled="saving"
+        />
 
         <div class="flex justify-end gap-2 pt-2">
-          <button @click="salvar" :disabled="saving" class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60">
+          <button
+              @click="salvar"
+              :disabled="saving"
+              class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
+          >
             <span v-if="saving">Salvando…</span>
             <span v-else>Salvar</span>
           </button>
-          <button @click="fechar" class="border px-4 py-2 rounded">Cancelar</button>
+          <button
+              @click="fechar"
+              :disabled="saving"
+              class="border px-4 py-2 rounded disabled:opacity-60"
+          >
+            Cancelar
+          </button>
         </div>
       </div>
     </div>
@@ -87,7 +187,7 @@ export default {
       this.loading = true
       try {
         const res = await api.get('/admin/servicos', { params: { q: this.q, page: this.page } })
-        this.servicos = res.data
+        this.servicos = res.data || { data: [], current_page: 1, last_page: 1 }
       } catch (e) {
         toastError('Erro ao carregar serviços.')
         this.servicos = { data: [], current_page: 1, last_page: 1 }
@@ -147,7 +247,7 @@ export default {
           toastSuccess('Serviço criado.')
         }
         this.modal = false
-        this.fetchServicos()
+        await this.fetchServicos()
       } catch (e) {
         toastError('Falha ao salvar serviço.')
       } finally {
@@ -158,12 +258,15 @@ export default {
     async remover(id) {
       const ok = await this.confirmar('Excluir este serviço?')
       if (!ok) return
+      this.loading = true
       try {
         await api.delete(`/admin/servicos/${id}`)
         toastSuccess('Serviço excluído.')
-        this.fetchServicos()
+        await this.fetchServicos()
       } catch (e) {
         toastError('Falha ao excluir serviço.')
+      } finally {
+        this.loading = false
       }
     },
 
@@ -174,3 +277,14 @@ export default {
   },
 }
 </script>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity .15s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>
