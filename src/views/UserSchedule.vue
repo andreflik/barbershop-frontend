@@ -10,7 +10,7 @@
           <div
               class="h-6 w-6 border-4 border-gray-300 border-t-transparent rounded-full animate-spin"
               aria-label="Carregando"
-          ></div>
+          />
           <span class="font-medium">Carregando…</span>
         </div>
       </div>
@@ -30,7 +30,6 @@
             :attributes="calendarAttrs"
             @dayclick="onDayClick"
         >
-          <!-- Popover do dia -->
           <template #day-popover="{ day }">
             <div v-if="day?.date && day.date.getDay() === 0">
               <div class="font-semibold">Sem atendimento</div>
@@ -42,13 +41,13 @@
           </template>
         </vc-calendar>
 
-        <!-- Linha com horário e serviço -->
-        <div class="mt-4 flex space-x-4">
-          <div class="w-1/2">
+        <!-- Horário & Serviço -->
+        <div class="mt-4 flex flex-col md:flex-row md:space-x-4 space-y-3 md:space-y-0">
+          <div class="md:w-1/2">
             <label class="block text-sm font-medium mb-1">Horário</label>
             <select
                 v-model="selectedTime"
-                class="border rounded w-full px-2 py-1 text-sm"
+                class="border rounded w-full px-2 py-2 text-sm"
                 :disabled="loading"
                 required
             >
@@ -64,11 +63,11 @@
             </select>
           </div>
 
-          <div class="w-1/2">
+          <div class="md:w-1/2">
             <label class="block text-sm font-medium mb-1">Serviço</label>
             <select
                 v-model.number="selectedService"
-                class="border rounded w-full px-2 py-1 text-sm"
+                class="border rounded w-full px-2 py-2 text-sm"
                 :disabled="loading"
                 required
             >
@@ -96,7 +95,7 @@
           <span
               v-if="loading"
               class="h-4 w-4 border-2 border-white/70 border-t-transparent rounded-full animate-spin"
-          ></span>
+          />
           <span>{{ loading ? 'Aguarde…' : 'Agendar' }}</span>
         </button>
       </div>
@@ -109,7 +108,6 @@ import { toastError, toastWarning, toastSuccess } from '@/plugins/alerts'
 
 const API_URL = process.env.VUE_APP_API_URL
 
-// Tradutor simples de mensagens de validação vindas do backend (inglês -> PT-BR)
 const translateValidation = (msg = '') => {
   const lower = String(msg).toLowerCase()
   if (lower.includes('must be a date after or equal to today')) return 'A data de agendamento deve ser hoje ou uma data futura.'
@@ -125,16 +123,12 @@ export default {
   data () {
     const today = new Date()
     return {
-      // estado
       loading: false,
-
-      // calendário/form
       today,
       selectedDate: new Date(),
       selectedTime: '',
       selectedService: null,
 
-      // dados
       servicos: [],
       bookedTimes: [],
       availableTimes: [],
@@ -162,7 +156,6 @@ export default {
   },
 
   async mounted () {
-    // Mostra overlay até serviços e horários iniciais chegarem
     await this.runWithLoading(Promise.all([
       this.fetchServicos(),
       this.fetchBookedTimes()

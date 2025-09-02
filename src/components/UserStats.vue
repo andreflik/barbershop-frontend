@@ -9,46 +9,65 @@
       </select>
     </div>
 
-    <div class="bg-white p-4 rounded shadow max-w-5xl mx-auto">
+    <div class="bg-white p-4 rounded shadow md:max-w-5xl mx-auto">
       <h3 class="text-center font-semibold mb-2">Seus Agendamentos</h3>
 
-      <table
-          v-if="Array.isArray(agendamentosDetalhados) && agendamentosDetalhados.length"
-          class="w-full table-auto mt-2"
-      >
-        <thead>
-        <tr class="bg-gray-200">
-          <th class="px-4 py-2">Data</th>
-          <th class="px-4 py-2">Horário</th>
-          <th class="px-4 py-2">Serviço</th>
-          <th class="px-4 py-2">Ações</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr v-for="(item, index) in agendamentosDetalhados" :key="index">
-          <td class="border px-4 py-2">{{ formatDate(item.data_agendamento || item.data) }}</td>
-          <td class="border px-4 py-2">{{ (item.hora_agendamento || item.hora_ini || '').slice(0, 5) }}</td>
-          <td class="border px-4 py-2">
-            {{ item?.servico?.servico || item?.servico?.nome || item?.servico?.name || getServicoNome(item.servico_id) }}
-          </td>
-          <td class="border px-4 py-2">
-            <button
-                @click="excluirAgendamento(item.id)"
-                class="text-red-600 hover:text-red-800"
-                title="Excluir agendamento"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
-                   viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0a2 2 0 00-2-2H9a2 2 0 00-2 2m12 0H5" />
-              </svg>
-            </button>
-          </td>
-        </tr>
-        </tbody>
-      </table>
+      <div class="overflow-x-auto">
+        <table
+            v-if="Array.isArray(agendamentosDetalhados) && agendamentosDetalhados.length"
+            class="w-full table-fixed text-sm sm:text-base mt-2"
+        >
+          <colgroup>
+            <col class="col-date" />
+            <col class="col-hora" />
+            <col class="col-servico" />
+            <col class="col-acoes" />
+          </colgroup>
 
-      <p v-else class="text-center text-gray-500 mt-6">Nenhum agendamento encontrado.</p>
+          <thead>
+          <tr class="bg-gray-200">
+            <th class="px-2 sm:px-4 py-2 text-center">Data</th>
+            <th class="px-2 sm:px-4 py-2 text-center">Horário</th>
+            <th class="px-2 sm:px-4 py-2 text-center">Serviço</th>
+            <th class="px-2 sm:px-4 py-2 text-center">Ações</th>
+          </tr>
+          </thead>
+
+          <tbody>
+          <tr v-for="(item, index) in agendamentosDetalhados" :key="index" class="border-b">
+            <td class="px-2 sm:px-4 py-2">
+              {{ formatDate(item.data_agendamento || item.data) }}
+            </td>
+            <td class="px-2 sm:px-4 py-2">
+              {{ (item.hora_agendamento || item.hora_ini || '').slice(0, 5) }}
+            </td>
+            <td class="px-2 sm:px-4 py-2">
+              <span
+                  class="block truncate sm:whitespace-normal sm:break-words max-w-[160px] sm:max-w-none"
+                  :title="item?.servico?.servico || item?.servico?.nome || item?.servico?.name || getServicoNome(item.servico_id)"
+              >
+                {{ item?.servico?.servico || item?.servico?.nome || item?.servico?.name || getServicoNome(item.servico_id) }}
+              </span>
+            </td>
+            <td class="px-1 sm:px-2 py-2 text-center">
+              <button
+                  @click="excluirAgendamento(item.id)"
+                  class="text-red-600 hover:text-red-800 inline-flex items-center justify-center"
+                  title="Excluir agendamento"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                     viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0a2 2 0 00-2-2H9a2 2 0 00-2 2m12 0H5"/>
+                </svg>
+              </button>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+
+        <p v-else class="text-center text-gray-500 mt-6">Nenhum agendamento encontrado.</p>
+      </div>
 
       <div v-if="pagination?.total > 0" class="flex justify-center mt-4 space-x-2">
         <button
@@ -77,25 +96,24 @@ import utc from 'dayjs/plugin/utc'
 import api from '@/services/api'
 dayjs.extend(utc)
 
-/** Notificação genérica */
 function notify (opts = {}) {
   try {
-    if (typeof window !== 'undefined' && window.Swal && typeof window.Swal.fire === 'function') {
-      return window.Swal.fire(opts)
-    }
+    if (window?.Swal?.fire) return window.Swal.fire(opts)
   } catch (e) {
-    if (process.env.NODE_ENV !== 'production') console.debug('[notify] fallback error:', e)
+    if (process.env.NODE_ENV !== 'production') {
+      // evita regra no-empty e ajuda no debug
+      console.debug('[notify] fallback', e)
+    }
   }
   const title = opts.title || ''
   const text = opts.text || ''
   const msg = [title, text].filter(Boolean).join('\n')
-  if (opts.icon === 'error') console.error('❌', title, text)
-  else if (opts.icon === 'warning') console.warn('⚠️', title, text)
-  else console.log('ℹ️', title, text)
-  if (typeof window !== 'undefined' && window.alert) window.alert(msg || 'Ação executada.')
+  if (opts.icon === 'error') console.error('❌', msg)
+  else if (opts.icon === 'warning') console.warn('⚠️', msg)
+  else console.log('ℹ️', msg)
+  if (window?.alert) window.alert(msg || 'Ação executada.')
 }
 
-/** Diálogo de confirmação */
 async function confirmDialog({
                                title = 'Confirmar',
                                text = 'Deseja continuar?',
@@ -104,7 +122,7 @@ async function confirmDialog({
                                icon = 'question'
                              } = {}) {
   try {
-    if (typeof window !== 'undefined' && window.Swal && typeof window.Swal.fire === 'function') {
+    if (window?.Swal?.fire) {
       const ret = await window.Swal.fire({
         title, text, icon,
         showCancelButton: true,
@@ -113,17 +131,17 @@ async function confirmDialog({
       return !!ret.isConfirmed
     }
   } catch (e) {
-    if (process.env.NODE_ENV !== 'production') console.debug('[confirmDialog] fallback error:', e)
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[confirmDialog] fallback', e)
+    }
   }
-  return typeof window !== 'undefined' ? window.confirm(`${title}\n${text}`) : true
+  return window?.confirm ? window.confirm(`${title}\n${text}`) : true
 }
 
 export default {
   name: 'UserStats',
-  emits: ['loading', 'ready'], // <- Pai controla overlay
-  props: {
-    authReady: { type: Boolean, default: false }
-  },
+  emits: ['loading', 'ready'],
+  props: { authReady: { type: Boolean, default: false } },
   data() {
     return {
       selectedYear: null,
@@ -138,41 +156,30 @@ export default {
   mounted() {
     this.initAnosDisponiveis()
     this.selectedYear = this.anosDisponiveis[0]
-    // Se já estiver autenticado ao montar, inicia boot
     if (this.authReady) this.boot()
   },
   watch: {
-    // Quando autenticar depois do mount, faz o boot inicial
-    authReady(val) {
-      if (val && !this.booting && this.agendamentosDetalhados.length === 0) {
-        this.boot()
-      }
-    },
-    // Mudar ano recarrega apenas a lista (sem acionar overlay global)
-    selectedYear() {
-      if (this.authReady) this.fetchEstatisticas(1)
-    }
+    authReady(val) { if (val && !this.booting && this.agendamentosDetalhados.length === 0) this.boot() },
+    selectedYear() { if (this.authReady) this.fetchEstatisticas(1) }
   },
   methods: {
     async boot() {
       this.booting = true
-      this.$emit('loading', true) // overlay ON (pai)
+      this.$emit('loading', true)
       try {
         await this.fetchServicos()
         await this.fetchEstatisticas(1)
       } finally {
         await this.$nextTick()
-        this.$emit('ready')        // sinaliza que renderizou
-        this.$emit('loading', false) // overlay OFF (pai)
+        this.$emit('ready')
+        this.$emit('loading', false)
         this.booting = false
       }
     },
-
     initAnosDisponiveis() {
       const atual = new Date().getFullYear()
       this.anosDisponiveis = Array.from({ length: 5 }, (_, i) => atual - i)
     },
-
     async fetchServicos() {
       try {
         const { data } = await api.get('/agendar-corte/servicos')
@@ -180,27 +187,18 @@ export default {
             Array.isArray(data?.servicos) ? data.servicos :
                 Array.isArray(data?.data)     ? data.data :
                     Array.isArray(data)           ? data : []
-      } catch (error) {
-        console.error('Erro ao carregar serviços:', error)
+      } catch {
         this.servicos = []
       }
     },
-
     async fetchEstatisticas(page = 1) {
       if (this.loading) return
       this.loading = true
       try {
-        const { data } = await api.get('/dashboard/estatisticas', {
-          params: { ano: this.selectedYear, page }
-        })
-
+        const { data } = await api.get('/dashboard/estatisticas', { params: { ano: this.selectedYear, page } })
         if (Array.isArray(data.agendamentosDetalhados)) {
           this.agendamentosDetalhados = data.agendamentosDetalhados
-          this.pagination = data.pagination || {
-            current_page: page,
-            last_page: 1,
-            total: data.agendamentosDetalhados.length
-          }
+          this.pagination = data.pagination || { current_page: page, last_page: 1, total: data.agendamentosDetalhados.length }
         } else if (data?.agendamentos?.data) {
           this.agendamentosDetalhados = data.agendamentos.data
           this.pagination = {
@@ -215,15 +213,13 @@ export default {
           this.agendamentosDetalhados = []
           this.pagination = { current_page: 1, last_page: 1, total: 0 }
         }
-      } catch (error) {
-        console.error('Erro ao carregar dados do dashboard:', error)
+      } catch {
         this.agendamentosDetalhados = []
         this.pagination = { current_page: 1, last_page: 1, total: 0 }
       } finally {
         this.loading = false
       }
     },
-
     async excluirAgendamento(id) {
       const ok = await confirmDialog({
         title: 'Tem certeza?',
@@ -233,33 +229,32 @@ export default {
         cancelButtonText: 'Cancelar'
       })
       if (!ok) return
-
       try {
         const { data } = await api.delete(`/agendar-corte/${id}`)
         notify({ icon: 'success', title: 'Excluído!', text: data?.message || 'Agendamento excluído.' })
         this.fetchEstatisticas(this.pagination?.current_page || 1)
-      } catch (error) {
-        const msg = error?.response?.data?.message || error?.response?.data?.error || 'Erro ao excluir'
+      } catch (e) {
+        const msg = e?.response?.data?.message || e?.response?.data?.error || 'Erro ao excluir'
         notify({ icon: 'error', title: 'Erro', text: msg })
       }
     },
-
-    goToPage(p) {
-      if (!this.loading && p >= 1 && p <= this.pagination.last_page) {
-        this.fetchEstatisticas(p)
-      }
-    },
-
-    formatDate(date) {
-      if (!date) return '-'
-      return dayjs.utc(date).format('DD/MM/YYYY')
-    },
-
+    goToPage(p) { if (!this.loading && p >= 1 && p <= this.pagination.last_page) this.fetchEstatisticas(p) },
+    formatDate(date) { return date ? dayjs.utc(date).format('DD/MM/YYYY') : '-' },
     getServicoNome(servicoId) {
       const s = this.servicos.find(x => Number(x.id) === Number(servicoId))
-      if (!s) return 'Não informado'
-      return s.servico || s.nome || s.name || 'Não informado'
+      return s ? (s.servico || s.nome || s.name || 'Não informado') : 'Não informado'
     }
   }
 }
 </script>
+
+<style scoped>
+.col-date   { width: 30%; }
+.col-hora   { width: 22%; }
+.col-servico{ width: auto; }
+
+.col-acoes { width: 64px; }                 /* antes era 48px */
+@media (min-width: 640px) { .col-acoes { width: 80px; } }
+@media (min-width: 1024px){ .col-acoes { width: 88px; } }
+
+</style>

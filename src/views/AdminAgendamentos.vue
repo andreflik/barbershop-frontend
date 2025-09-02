@@ -1,131 +1,216 @@
 <template>
-  <div class="p-6 space-y-4">
-    <h2 class="text-2xl font-bold">Agendamentos</h2>
+  <div class="min-h-screen flex flex-col bg-gray-100">
+    <!-- Navbar do Admin -->
 
-    <!-- Filtros -->
-    <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
-      <div>
-        <label class="text-sm text-gray-600">Busca</label>
-        <input v-model="q" placeholder="Usuário ou serviço" class="border p-2 rounded w-full" />
-      </div>
 
-      <div>
-        <label class="text-sm text-gray-600">Serviço</label>
-        <select v-model="servicoId" class="border p-2 rounded w-full">
-          <option value="">Todos</option>
-          <option v-for="s in servicosOpts" :key="s.id" :value="s.id">{{ s.servico }}</option>
-        </select>
-      </div>
+    <!-- Conteúdo -->
+    <main class="max-w-6xl mx-auto p-4 sm:p-6 space-y-5">
+      <h2 class="text-2xl font-bold text-center">Agendamentos</h2>
 
-      <div>
-        <label class="text-sm text-gray-600">Cliente</label>
-        <select v-model="usuarioId" class="border p-2 rounded w-full">
-          <option value="">Todos</option>
-          <option v-for="u in usuariosOpts" :key="u.id" :value="u.id">{{ u.name }}</option>
-        </select>
-      </div>
+      <!-- Filtros -->
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+        <div>
+          <label class="text-sm text-gray-600">Busca</label>
+          <input v-model="q" placeholder="Usuário ou serviço" class="border p-2 rounded w-full" />
+        </div>
 
-      <div>
-        <label class="text-sm text-gray-600">Mês/Ano</label>
-        <flat-pickr v-model="mesAnoDate" :config="fpConfig" placeholder="Selecione o mês" class="border p-2 rounded w-full" />
-      </div>
+        <div>
+          <label class="text-sm text-gray-600">Serviço</label>
+          <select v-model="servicoId" class="border p-2 rounded w-full">
+            <option value="">Todos</option>
+            <option v-for="s in servicosOpts" :key="s.id" :value="s.id">{{ s.servico }}</option>
+          </select>
+        </div>
 
-      <div class="flex gap-2">
-        <button @click="filtrar" :disabled="loading" class="px-4 py-2 rounded w-full text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed">
-          <span v-if="loading" class="inline-flex items-center gap-2">
-            <span class="h-4 w-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin"></span>
-            Filtrando...
-          </span>
-          <span v-else>Filtrar</span>
-        </button>
-        <button @click="limpar" :disabled="loading" class="border px-4 py-2 rounded w-full disabled:opacity-60 disabled:cursor-not-allowed">
-          Limpar
-        </button>
-      </div>
-    </div>
+        <div>
+          <label class="text-sm text-gray-600">Cliente</label>
+          <select v-model="usuarioId" class="border p-2 rounded w-full">
+            <option value="">Todos</option>
+            <option v-for="u in usuariosOpts" :key="u.id" :value="u.id">{{ u.name }}</option>
+          </select>
+        </div>
 
-    <!-- Ações -->
-    <div class="flex items-center gap-2">
-      <button
-          @click="exportarXlsx"
-          :disabled="exporting || loading || !(itens && itens.data && itens.data.length)"
-          :aria-busy="exporting && exportingType==='xlsx'"
-          title="Exportar XLSX"
-          class="p-2 border rounded hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-      >
-        <template v-if="exporting && exportingType==='xlsx'">
-          <span class="h-6 w-6 border-2 border-gray-400 border-t-transparent rounded-full inline-block animate-spin"></span>
-        </template>
-        <template v-else>
-          <img :src="icons.excel" alt="Exportar XLSX" class="w-7 h-7 md:w-8 md:h-8 object-contain select-none" draggable="false" />
-        </template>
-        <span class="sr-only">Exportar XLSX</span>
-      </button>
+        <div>
+          <label class="text-sm text-gray-600">Mês/Ano</label>
+          <input v-model="mesAno" type="month" class="border p-2 rounded w-full" placeholder="Selecione o mês" />
+        </div>
 
-      <button
-          @click="exportarPdf"
-          :disabled="exporting || loading || !(itens && itens.data && itens.data.length)"
-          :aria-busy="exporting && exportingType==='pdf'"
-          title="Exportar PDF"
-          class="p-2 border rounded hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-      >
-        <template v-if="exporting && exportingType==='pdf'">
-          <span class="h-6 w-6 border-2 border-gray-400 border-t-transparent rounded-full inline-block animate-spin"></span>
-        </template>
-        <template v-else>
-          <img :src="icons.pdf" alt="Exportar PDF" class="w-7 h-7 md:w-8 md:h-8 object-contain select-none" draggable="false" />
-        </template>
-        <span class="sr-only">Exportar PDF</span>
-      </button>
-    </div>
-
-    <!-- Tabela -->
-    <table class="w-full table-auto">
-      <thead class="bg-gray-200">
-      <tr>
-        <th class="px-4 py-2 text-left">Usuário</th>
-        <th class="px-4 py-2 text-left">Data</th>
-        <th class="px-4 py-2 text-left">Hora</th>
-        <th class="px-4 py-2 text-left">Serviço</th>
-        <th class="px-4 py-2"></th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr v-for="a in itens.data" :key="a && a.id ? a.id : `${a.data_agendamento}-${a.hora_agendamento}`" class="border-b">
-        <td class="px-4 py-2">{{ usuarioNome(a) }}</td>
-        <td class="px-4 py-2">{{ a && a.data_agendamento ? formatDate(a.data_agendamento) : '-' }}</td>
-        <td class="px-4 py-2">{{ a && a.hora_agendamento ? a.hora_agendamento : '-' }}</td>
-        <td class="px-4 py-2">{{ servicoNome(a) }}</td>
-        <td class="px-4 py-2 text-right">
-          <button @click="cancelar(a.id)" class="px-3 py-1 bg-red-600 text-white rounded">Cancelar</button>
-        </td>
-      </tr>
-      <tr v-if="!(itens && itens.data && itens.data.length)">
-        <td colspan="5" class="text-center text-gray-500 py-4">Sem dados</td>
-      </tr>
-      </tbody>
-    </table>
-
-    <!-- Paginação -->
-    <div v-if="itens && (itens.last_page || 1) > 1" class="flex items-center gap-2">
-      <button :disabled="!itens.prev_page_url || loading" @click="goto(itens.current_page - 1)" class="px-3 py-1 border rounded disabled:opacity-60">
-        Anterior
-      </button>
-      <span>Página {{ itens.current_page || 1 }} de {{ itens.last_page || 1 }}</span>
-      <button :disabled="!itens.next_page_url || loading" @click="goto(itens.current_page + 1)" class="px-3 py-1 border rounded disabled:opacity-60">
-        Próxima
-      </button>
-    </div>
-
-    <!-- Overlay de carregamento -->
-    <transition name="fade">
-      <div v-if="loading" class="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div class="bg-white p-6 rounded-xl shadow-lg flex items-center gap-3">
-          <div class="h-6 w-6 border-4 border-gray-300 border-t-transparent rounded-full animate-spin" aria-label="Carregando"></div>
-          <span class="font-medium">Carregando...</span>
+        <div class="flex gap-2">
+          <button
+              @click="filtrar"
+              :disabled="loading"
+              class="px-4 py-2 rounded w-full text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <span v-if="loading" class="inline-flex items-center gap-2">
+              <span class="h-4 w-4 border-2 border-white/60 border-t-transparent rounded-full animate-spin"></span>
+              Filtrando...
+            </span>
+            <span v-else>Filtrar</span>
+          </button>
+          <button
+              @click="limpar"
+              :disabled="loading"
+              class="border px-4 py-2 rounded w-full disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            Limpar
+          </button>
         </div>
       </div>
-    </transition>
+
+      <!-- Ações de exportação -->
+      <div class="flex items-center gap-2 justify-start sm:justify-end">
+        <button
+            @click="exportarXlsx"
+            :disabled="exporting || loading || !(itens && itens.data && itens.data.length)"
+            :aria-busy="exporting && exportingType==='xlsx'"
+            title="Exportar XLSX"
+            class="p-2 border rounded hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <template v-if="exporting && exportingType==='xlsx'">
+            <span class="h-6 w-6 border-2 border-gray-400 border-t-transparent rounded-full inline-block animate-spin"></span>
+          </template>
+          <template v-else>
+            <img :src="icons.excel" alt="Exportar XLSX" class="w-6 h-6 md:w-7 md:h-7 object-contain select-none" draggable="false" />
+          </template>
+          <span class="sr-only">Exportar XLSX</span>
+        </button>
+
+        <button
+            @click="exportarPdf"
+            :disabled="exporting || loading || !(itens && itens.data && itens.data.length)"
+            :aria-busy="exporting && exportingType==='pdf'"
+            title="Exportar PDF"
+            class="p-2 border rounded hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <template v-if="exporting && exportingType==='pdf'">
+            <span class="h-6 w-6 border-2 border-gray-400 border-t-transparent rounded-full inline-block animate-spin"></span>
+          </template>
+          <template v-else>
+            <img :src="icons.pdf" alt="Exportar PDF" class="w-6 h-6 md:w-7 md:h-7 object-contain select-none" draggable="false" />
+          </template>
+          <span class="sr-only">Exportar PDF</span>
+        </button>
+      </div>
+
+      <!-- LISTA MOBILE (até md) -->
+      <div class="md:hidden space-y-3">
+        <div
+            v-for="a in itens.data"
+            :key="a && a.id ? a.id : `${a.data_agendamento}-${a.hora_agendamento}`"
+            class="bg-white rounded-lg shadow border p-3"
+        >
+          <div class="text-sm">
+            <div class="flex items-center justify-between">
+              <strong class="truncate max-w-[65%]">{{ usuarioNome(a) }}</strong>
+              <span class="text-gray-600">{{ a?.hora_agendamento || '-' }}</span>
+            </div>
+            <div class="text-gray-600">{{ formatDate(a?.data_agendamento) }}</div>
+            <div class="mt-1 truncate">{{ servicoNome(a) }}</div>
+          </div>
+          <div class="mt-3 flex justify-end">
+            <button
+                @click="cancelar(a.id)"
+                class="inline-flex items-center justify-center px-3 py-1.5 rounded bg-red-600 text-white hover:bg-red-700"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+
+        <p v-if="!(itens && itens.data && itens.data.length)" class="text-center text-gray-500">
+          Sem dados
+        </p>
+      </div>
+
+      <!-- TABELA (md e acima) -->
+      <div class="hidden md:block overflow-x-auto">
+        <table class="w-full table-fixed text-sm">
+          <colgroup>
+            <col class="w-[32%]" />
+            <col class="w-[16%]" />
+            <col class="w-[12%]" />
+            <col class="w-auto" />
+            <col class="w-[90px]" />
+          </colgroup>
+          <thead class="bg-gray-200">
+          <tr>
+            <th class="px-4 py-2 text-left">Usuário</th>
+            <th class="px-4 py-2 text-center">Data</th>
+            <th class="px-4 py-2 text-center">Hora</th>
+            <th class="px-4 py-2 text-left">Serviço</th>
+            <th class="px-4 py-2 text-center">Ações</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr
+              v-for="a in itens.data"
+              :key="a && a.id ? a.id : `${a.data_agendamento}-${a.hora_agendamento}`"
+              class="border-b"
+          >
+            <td class="px-4 py-2">
+              <span class="block max-w-[260px] truncate">{{ usuarioNome(a) }}</span>
+            </td>
+            <td class="px-4 py-2 text-center whitespace-nowrap">
+              {{ a && a.data_agendamento ? formatDate(a.data_agendamento) : '-' }}
+            </td>
+            <td class="px-4 py-2 text-center whitespace-nowrap">
+              {{ a && a.hora_agendamento ? a.hora_agendamento : '-' }}
+            </td>
+            <td class="px-4 py-2">
+              <span class="block max-w-[360px] truncate">{{ servicoNome(a) }}</span>
+            </td>
+            <td class="px-2 py-2 text-center">
+              <button
+                  @click="cancelar(a.id)"
+                  class="inline-flex items-center justify-center p-2 rounded bg-red-50 hover:bg-red-100 text-red-600"
+                  title="Cancelar"
+                  aria-label="Cancelar"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path
+                      d="M9 3a1 1 0 0 0-1 1v1H5.5a1 1 0 1 0 0 2H6v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7h.5a1 1 0 1 0 0-2H16V4a1 1 0 0 0-1-1H9Zm2 4a1 1 0 1 0-2 0v10a1 1 0 1 0 2 0V7Zm4 0a1 1 0 1 0-2 0v10a1 1 0 1 0 2 0V7Z"
+                  />
+                </svg>
+              </button>
+            </td>
+          </tr>
+
+          <tr v-if="!(itens && itens.data && itens.data.length)">
+            <td colspan="5" class="text-center text-gray-500 py-4">Sem dados</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Paginação -->
+      <div v-if="itens && (itens.last_page || 1) > 1" class="flex items-center justify-center gap-2">
+        <button
+            :disabled="!itens.prev_page_url || loading"
+            @click="goto(itens.current_page - 1)"
+            class="px-3 py-1 border rounded disabled:opacity-60"
+        >
+          Anterior
+        </button>
+        <span>Página {{ itens.current_page || 1 }} de {{ itens.last_page || 1 }}</span>
+        <button
+            :disabled="!itens.next_page_url || loading"
+            @click="goto(itens.current_page + 1)"
+            class="px-3 py-1 border rounded disabled:opacity-60"
+        >
+          Próxima
+        </button>
+      </div>
+
+      <!-- Overlay de carregamento -->
+      <transition name="fade">
+        <div v-if="loading" class="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div class="bg-white p-6 rounded-xl shadow-lg flex items-center gap-3">
+            <div class="h-6 w-6 border-4 border-gray-300 border-t-transparent rounded-full animate-spin" aria-label="Carregando"></div>
+            <span class="font-medium">Carregando...</span>
+          </div>
+        </div>
+      </transition>
+    </main>
   </div>
 </template>
 
@@ -133,60 +218,31 @@
 import api from '@/services/api'
 import excelIcon from '@/assets/excel.png'
 import pdfIcon from '@/assets/pdf.png'
-
-import FlatPickr from 'vue-flatpickr-component'
-import 'flatpickr/dist/flatpickr.css'
-import 'flatpickr/dist/themes/material_blue.css'
-import monthSelectPlugin from 'flatpickr/dist/plugins/monthSelect/index.js'
-import 'flatpickr/dist/plugins/monthSelect/style.css'
-import { Portuguese } from 'flatpickr/dist/l10n/pt.js'
 import { toastError, toastSuccess } from '@/plugins/alerts'
 
 export default {
   name: 'AdminAgendamentos',
-  components: { FlatPickr },
+
   data() {
     return {
       q: '',
       servicoId: '',
       usuarioId: '',
       mesAno: '',
-      mesAnoDate: null,
       page: 1,
+
       itens: { data: [], current_page: 1, last_page: 1 },
       servicosOpts: [],
       usuariosOpts: [],
+
       loading: false,
       exporting: false,
       exportingType: '',
       icons: { excel: excelIcon, pdf: pdfIcon },
-      fpConfig: {
-        locale: Portuguese,
-        altInput: true,
-        allowInput: true,
-        plugins: [new monthSelectPlugin({ shorthand: true, dateFormat: 'Y-m', altFormat: 'F Y' })],
-        static: true
-      }
-    }
-  },
-  watch: {
-    mesAnoDate(newVal) {
-      const d = Array.isArray(newVal) ? newVal[0] : newVal
-      if (d instanceof Date && !isNaN(d)) {
-        const yyyy = d.getFullYear()
-        const mm = String(d.getMonth() + 1).padStart(2, '0')
-        this.mesAno = `${yyyy}-${mm}`
-      } else {
-        this.mesAno = ''
-      }
     }
   },
   mounted() {
     this.bootstrap()
-    if (this.mesAno) {
-      const [y, m] = this.mesAno.split('-')
-      this.mesAnoDate = new Date(Number(y), Number(m) - 1, 1)
-    }
   },
   methods: {
     async bootstrap() {
@@ -239,7 +295,6 @@ export default {
       this.page = p
       this.fetchItens()
     },
-
     async confirmar(texto) {
       if (window.Swal && typeof window.Swal.fire === 'function') {
         const { isConfirmed } = await window.Swal.fire({
@@ -254,7 +309,6 @@ export default {
       }
       return window.confirm(texto || 'Deseja continuar?')
     },
-
     async cancelar(id) {
       const ok = await this.confirmar('Cancelar este agendamento?')
       if (!ok) return
@@ -269,7 +323,6 @@ export default {
         this.loading = false
       }
     },
-
     usuarioNome(a) {
       if (!a) return '-'
       const u = a.usuario
@@ -299,38 +352,34 @@ export default {
       this.servicoId = ''
       this.usuarioId = ''
       this.mesAno = ''
-      this.mesAnoDate = null
       this.page = 1
       this.fetchItens()
     },
-
     async exportarXlsx() {
       this.exporting = true; this.exportingType = 'xlsx'
       try {
-        const res = await api.get('/admin/agendamentos/export/xlsx', { params: this.paramsComFiltros(), responseType: 'blob' })
+        const res = await api.get('/admin/agendamentos/export/xlsx', {
+          params: this.paramsComFiltros(), responseType: 'blob'
+        })
         const url = URL.createObjectURL(new Blob([res.data]))
         const a = document.createElement('a')
         a.href = url; a.download = this.buildExportFileName('xlsx'); a.click()
         URL.revokeObjectURL(url)
-      } catch {
-        toastError('Falha ao exportar XLSX.')
-      } finally {
-        this.exporting = false; this.exportingType = ''
-      }
+      } catch { toastError('Falha ao exportar XLSX.') }
+      finally { this.exporting = false; this.exportingType = '' }
     },
     async exportarPdf() {
       this.exporting = true; this.exportingType = 'pdf'
       try {
-        const res = await api.get('/admin/agendamentos/export/pdf', { params: this.paramsComFiltros(), responseType: 'blob' })
+        const res = await api.get('/admin/agendamentos/export/pdf', {
+          params: this.paramsComFiltros(), responseType: 'blob'
+        })
         const url = URL.createObjectURL(new Blob([res.data]))
         const a = document.createElement('a')
         a.href = url; a.download = this.buildExportFileName('pdf'); a.click()
         URL.revokeObjectURL(url)
-      } catch {
-        toastError('Falha ao exportar PDF.')
-      } finally {
-        this.exporting = false; this.exportingType = ''
-      }
+      } catch { toastError('Falha ao exportar PDF.') }
+      finally { this.exporting = false; this.exportingType = '' }
     },
     buildExportFileName(ext) {
       const parts = ['agendamentos']
@@ -348,5 +397,8 @@ export default {
 <style scoped>
 .fade-enter-active, .fade-leave-active { transition: opacity .15s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
 </style>

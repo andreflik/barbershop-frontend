@@ -1,5 +1,5 @@
 <template>
-  <div class="relative min-h-screen p-6 space-y-6">
+  <div class="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
     <!-- Overlay de carregamento em tela cheia -->
     <transition name="fade">
       <div
@@ -15,75 +15,128 @@
       </div>
     </transition>
 
-    <h2 class="text-2xl font-bold">Serviços</h2>
+    <h2 class="text-2xl font-bold text-center">Serviços</h2>
 
-    <div class="flex items-center gap-2">
+    <!-- Barra de busca / ações -->
+    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
       <input
           v-model="q"
           placeholder="Buscar..."
-          class="border p-2 rounded"
+          class="border p-2 rounded flex-1 min-w-[200px]"
           :disabled="loading || saving"
       />
-      <button
-          @click="fetchServicos"
-          :disabled="loading || saving"
-          class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
-      >
-        Buscar
-      </button>
-      <button
-          @click="abrirNovo"
-          :disabled="loading || saving"
-          class="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-60"
-      >
-        Novo
-      </button>
+      <div class="flex gap-2">
+        <button
+            @click="fetchServicos"
+            :disabled="loading || saving"
+            class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
+        >
+          Buscar
+        </button>
+        <button
+            @click="abrirNovo"
+            :disabled="loading || saving"
+            class="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-60"
+        >
+          Novo
+        </button>
+      </div>
     </div>
 
-    <table class="w-full table-auto">
-      <thead class="bg-gray-200">
-      <tr>
-        <th class="px-4 py-2 text-left">Código</th>
-        <th class="px-4 py-2 text-left">Serviço</th>
-        <th class="px-4 py-2 text-left">Preço</th>
-        <th class="px-4 py-2"></th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr
+    <!-- LISTA MOBILE (até md) -->
+    <div class="md:hidden space-y-3">
+      <div
           v-for="s in (servicos.data || [])"
           :key="s.id"
-          class="border-b"
+          class="bg-white rounded-lg shadow border p-3"
       >
-        <td class="px-4 py-2">{{ s.codigo }}</td>
-        <td class="px-4 py-2">{{ s.servico }}</td>
-        <td class="px-4 py-2">{{ formatMoney(s.preco) }}</td>
-        <td class="px-4 py-2 text-right space-x-2">
+        <div class="text-sm">
+          <div class="flex items-center justify-between">
+            <strong class="truncate max-w-[60%]">{{ s.servico }}</strong>
+            <span class="text-gray-600">{{ formatMoney(s.preco) }}</span>
+          </div>
+          <div class="text-gray-600 mt-1">Código: {{ s.codigo }}</div>
+        </div>
+        <div class="mt-3 flex gap-2">
           <button
               @click="editar(s)"
               :disabled="saving || loading"
-              class="px-3 py-1 bg-yellow-500 text-white rounded disabled:opacity-60"
+              class="flex-1 px-3 py-2 bg-yellow-500 text-white rounded disabled:opacity-60"
           >
             Editar
           </button>
           <button
               @click="remover(s.id)"
               :disabled="saving || loading"
-              class="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-60"
+              class="flex-1 px-3 py-2 bg-red-600 text-white rounded disabled:opacity-60"
           >
             Excluir
           </button>
-        </td>
-      </tr>
-      <tr v-if="!loading && (!servicos.data || !servicos.data.length)">
-        <td colspan="4" class="text-center text-gray-500 py-4">Sem dados</td>
-      </tr>
-      </tbody>
-    </table>
+        </div>
+      </div>
 
+      <p v-if="!loading && (!servicos.data || !servicos.data.length)" class="text-center text-gray-500">
+        Sem dados
+      </p>
+    </div>
+
+    <!-- TABELA (md e acima) -->
+    <div class="hidden md:block overflow-x-auto">
+      <table class="w-full table-fixed text-sm">
+        <colgroup>
+          <col class="w-[120px]" />
+          <col class="w-auto" />
+          <col class="w-[140px]" />
+          <col class="w-[180px]" />
+        </colgroup>
+        <thead class="bg-gray-200">
+        <tr>
+          <th class="px-4 py-2 text-left">Código</th>
+          <th class="px-4 py-2 text-left">Serviço</th>
+          <th class="px-4 py-2 text-left">Preço</th>
+          <th class="px-4 py-2"></th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr
+            v-for="s in (servicos.data || [])"
+            :key="s.id"
+            class="border-b"
+        >
+          <td class="px-4 py-2 whitespace-nowrap">{{ s.codigo }}</td>
+          <td class="px-4 py-2">
+            <span class="block max-w-[520px] truncate">{{ s.servico }}</span>
+          </td>
+          <td class="px-4 py-2 whitespace-nowrap">{{ formatMoney(s.preco) }}</td>
+          <td class="px-4 py-2 text-right space-x-2">
+            <button
+                @click="editar(s)"
+                :disabled="saving || loading"
+                class="px-3 py-1 bg-yellow-500 text-white rounded disabled:opacity-60"
+            >
+              Editar
+            </button>
+            <button
+                @click="remover(s.id)"
+                :disabled="saving || loading"
+                class="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-60"
+            >
+              Excluir
+            </button>
+          </td>
+        </tr>
+
+        <tr v-if="!loading && (!servicos.data || !servicos.data.length)">
+          <td colspan="4" class="text-center text-gray-500 py-4">Sem dados</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginação -->
     <div
         v-if="servicos && (servicos.last_page || 1) > 1"
-        class="flex items-center gap-2"
+        class="flex items-center justify-center gap-2"
     >
       <button
           :disabled="!servicos.prev_page_url || loading || saving"
@@ -107,8 +160,10 @@
         v-if="modal"
         class="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
     >
-      <div class="bg-white p-6 rounded-xl space-y-4 w-full max-w-md">
-        <h3 class="text-xl font-semibold">{{ form.id ? 'Editar' : 'Novo' }} Serviço</h3>
+      <div class="bg-white p-6 rounded-xl space-y-4 w-full max-w-md mx-3">
+        <h3 class="text-xl font-semibold">
+          {{ form.id ? 'Editar' : 'Novo' }} Serviço
+        </h3>
 
         <label class="block text-sm font-medium">Código *</label>
         <input
@@ -279,12 +334,6 @@ export default {
 </script>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity .15s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
+.fade-enter-active, .fade-leave-active { transition: opacity .15s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
