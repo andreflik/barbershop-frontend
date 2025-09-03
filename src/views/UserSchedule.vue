@@ -26,7 +26,8 @@
             is-expanded
             color="blue"
             locale="pt-BR"
-            :disabled-dates="[{ weekdays: [0] }]"
+            :min-date="todayStart"
+            :disabled-dates="disabledDates"
             :attributes="calendarAttrs"
             @dayclick="onDayClick"
         >
@@ -121,23 +122,25 @@ export default {
   name: 'UserSchedule',
 
   data () {
-    const today = new Date()
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     return {
       loading: false,
-      today,
+      today: now,
+      todayStart,
+
+      baseCalendarAttrs: [
+        { key: 'all-days-pop', dates: { start: new Date(2000,0,1), end: new Date(2100,0,1) }, popover: { visibility: 'hover' } },
+        { key: 'sunday-pop',  dates: { weekdays: [0] }, popover: { visibility: 'hover' } }
+      ],
+
       selectedDate: new Date(),
       selectedTime: '',
       selectedService: null,
 
       servicos: [],
       bookedTimes: [],
-      availableTimes: [],
       allTimes: this.generateTimeSlots('07:00', '18:00', 30),
-
-      calendarAttrs: [
-        { key: 'all-days-pop', dates: { start: new Date(2000,0,1), end: new Date(2100,0,1) }, popover: { visibility: 'hover' } },
-        { key: 'sunday-pop',  dates: { weekdays: [0] }, popover: { visibility: 'hover' } }
-      ]
     }
   },
 
@@ -152,6 +155,13 @@ export default {
       const mm = String(d.getMonth()+1).padStart(2,'0')
       const yyyy = d.getFullYear()
       return `${dd}/${mm}/${yyyy}`
+    },
+    // Passado é bloqueado por min-date; aqui desabilitamos apenas domingos
+    disabledDates () {
+      return [{ weekdays: [0] }]
+    },
+    calendarAttrs () {
+      return [...this.baseCalendarAttrs]
     }
   },
 
@@ -210,7 +220,12 @@ export default {
     },
 
     async onDayClick (day) {
-      if (day.date.getDay() === 0) {
+      const d = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate())
+      if (d < this.todayStart) {
+        toastError('Não é possível agendar em datas passadas.')
+        return
+      }
+      if (d.getDay() === 0) {
         toastError('Domingos não estão disponíveis para agendamento.')
         return
       }
@@ -248,8 +263,10 @@ export default {
     },
 
     async scheduleEvent () {
-      if (!this.selectedDate || !this.selectedTime || this.selectedService == null) {
-        toastWarning('Selecione data, horário e serviço.')
+      const d0 = new Date(this.selectedDate || 0)
+      const onlyDay = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate())
+      if (!this.selectedDate || onlyDay < this.todayStart || !this.selectedTime || this.selectedService == null) {
+        toastWarning('Selecione uma data futura (ou hoje), horário e serviço.')
         return
       }
 
@@ -311,11 +328,16 @@ export default {
 
 <style scoped>
 .container { max-width: 600px; margin: auto; }
-:deep(.vc-day:not(.is-disabled) .vc-day-content) { color: #111827; }
-:deep(.vc-day.is-disabled .vc-day-content) { color: #9ca3af !important; opacity: 1; }
-:deep(.vc-day.is-disabled) { cursor: default; }
-:deep(.vc-highlight) { background: transparent !important; }
 
+/* Pretos para dias habilitados; cinza para desabilitados (passado e domingos) */
+:deep(.vc-day:not(.is-disabled) .vc-day-content) { color: #111827; } /* gray-900 */
+:deep(.vc-day.is-disabled .vc-day-content) {
+  color: #9ca3af !important; /* gray-400 */
+  opacity: 1;
+}
+:deep(.vc-day.is-disabled) { cursor: default; }
+
+/* overlay fade */
 .fade-enter-active, .fade-leave-active { transition: opacity .15s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

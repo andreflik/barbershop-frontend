@@ -158,10 +158,8 @@ export default {
       userName: '',
       userRole: '',
       authReady: false,
-      // overlay controlado pelo filho:
       childLoading: false,
       childReady: false,
-      // menu mobile
       menuOpen: false,
     }
   },
