@@ -1,128 +1,122 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-gray-100">
-    <!-- Overlay em tela cheia (controlado pelo UserStats) -->
+  <div class="min-h-screen flex flex-col bg-gradient-to-br from-[#f1efec] to-[#e7e5e2] text-gray-900 font-[Outfit]">
+    <!-- Overlay de carregamento -->
     <transition name="fade">
       <div
-          v-if="showOverlay"
-          class="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center"
+        v-if="showOverlay"
+        class="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center"
       >
-        <div class="bg-white p-6 rounded-xl shadow-lg flex items-center gap-3">
+        <div class="bg-white p-6 rounded-2xl shadow-xl flex items-center gap-3">
           <div
-              class="h-6 w-6 border-4 border-gray-300 border-t-transparent rounded-full animate-spin"
-              aria-label="Carregando"
+            class="h-6 w-6 border-4 border-gray-300 border-t-transparent rounded-full animate-spin"
+            aria-label="Carregando"
           ></div>
-          <span class="font-medium">Carregando…</span>
+          <span class="font-medium text-gray-700">Carregando…</span>
         </div>
       </div>
     </transition>
 
-    <!-- Header / Navbar -->
-    <header class="bg-blue-600 text-white px-3 sm:px-6 py-4 sm:py-6">
-      <div class="max-w-6xl mx-auto flex justify-between items-center gap-3">
-        <div class="min-w-0">
-          <h1 class="text-xl sm:text-2xl font-bold truncate">{{ pageTitle }}</h1>
-          <p class="text-xs sm:text-sm opacity-90 truncate" v-if="userName">
-            Bem-vindo, {{ userName }}
-          </p>
+    <!-- HEADER -->
+    <header class="bg-[#c06a28] text-white shadow-md sticky top-0 z-40">
+      <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between px-5 py-4 sm:py-5">
+        <!-- LOGO -->
+        <div class="flex items-center gap-3 min-w-0">
+          <img
+            src="/logo-barber.png"
+            alt="Logo"
+            class="h-10 w-10 rounded-lg bg-white p-1 shadow-md"
+          />
+          <div class="truncate">
+            <h1 class="text-lg sm:text-xl font-bold truncate">{{ pageTitle }}</h1>
+            <p class="text-xs sm:text-sm opacity-90 truncate" v-if="userName">
+              Bem-vindo, {{ userName }}
+            </p>
+          </div>
         </div>
 
-        <!-- NAV: Home fixo + demais itens responsivos -->
-        <nav class="flex items-center gap-2">
-          <!-- Home sempre visível -->
-          <router-link
-              to="/dashboard"
-              :class="navLinkClass('/dashboard')"
-              class="text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2"
-          >
-            Home
-          </router-link>
-
-          <!-- Itens inteiros em ≥ md -->
+        <!-- NAV -->
+        <nav class="flex items-center gap-2 mt-3 sm:mt-0">
+          <!-- Desktop -->
           <div class="hidden md:flex items-center gap-2">
             <router-link
-                to="/schedule"
-                :class="navLinkClass('/schedule')"
-                class="text-sm px-3 py-2"
+              to="/dashboard"
+              :class="navLinkClass('/dashboard')"
+              class="px-4 py-2 rounded-full text-sm font-medium transition"
             >
-              Agendar Serviços
+              Home
             </router-link>
 
             <router-link
-                to="/contact"
-                :class="navLinkClass('/contact')"
-                class="text-sm px-3 py-2"
+              to="/schedule"
+              :class="navLinkClass('/schedule')"
+              class="px-4 py-2 rounded-full text-sm font-medium transition"
+            >
+              Agendar
+            </router-link>
+
+            <router-link
+              to="/contact"
+              :class="navLinkClass('/contact')"
+              class="px-4 py-2 rounded-full text-sm font-medium transition"
             >
               Serviços
             </router-link>
 
             <router-link
-                v-if="isAdmin"
-                to="/admin"
-                :class="navLinkClass('/admin')"
-                class="text-sm px-3 py-2"
+              v-if="isAdmin"
+              to="/admin"
+              :class="navLinkClass('/admin')"
+              class="px-4 py-2 rounded-full text-sm font-medium transition"
             >
               Painel ADM
             </router-link>
 
             <button
-                @click="logout"
-                class="text-sm px-3 py-2 rounded bg-red-500 hover:bg-red-600"
-                title="Sair"
+              @click="logout"
+              class="px-4 py-2 rounded-full bg-red-500 hover:bg-red-600 shadow-sm text-sm font-medium transition"
             >
               Sair
             </button>
           </div>
 
-          <!-- Dropdown em < md -->
-          <div class="relative md:hidden">
+          <!-- Mobile -->
+          <div class="md:hidden relative">
             <button
-                @click="menuOpen = !menuOpen"
-                class="px-2 py-1.5 rounded bg-white/10 hover:bg-white/20 text-xs flex items-center gap-1"
-                aria-haspopup="true"
-                :aria-expanded="menuOpen ? 'true' : 'false'"
-                title="Mais"
+              @click="menuOpen = !menuOpen"
+              class="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-3 py-2 rounded-full text-sm font-semibold"
             >
-              <span class="material-icons text-base leading-none">menu</span>
-              <span class="sr-only">Abrir menu</span>
-              <span class="font-semibold">Mais</span>
+              <span class="material-icons text-lg leading-none">menu</span>
+              Menu
             </button>
 
             <div
-                v-if="menuOpen"
-                class="absolute right-0 mt-2 w-48 bg-white text-gray-800 rounded-lg shadow-xl overflow-hidden z-50"
-                @click.stop
+              v-if="menuOpen"
+              class="absolute right-0 mt-2 bg-white text-gray-800 rounded-xl shadow-xl overflow-hidden z-50 w-48 animate-fadeIn"
             >
               <router-link
-                  to="/schedule"
-                  class="block px-3 py-2 text-sm hover:bg-gray-100"
-                  @click="closeMenu"
-              >
-                Agendar
-              </router-link>
-
+                to="/dashboard"
+                class="block px-4 py-2 hover:bg-gray-100 text-sm"
+                @click="closeMenu"
+              >Home</router-link>
               <router-link
-                  to="/contact"
-                  class="block px-3 py-2 text-sm hover:bg-gray-100"
-                  @click="closeMenu"
-              >
-                Serviços
-              </router-link>
-
+                to="/schedule"
+                class="block px-4 py-2 hover:bg-gray-100 text-sm"
+                @click="closeMenu"
+              >Agendar</router-link>
               <router-link
-                  v-if="isAdmin"
-                  to="/admin"
-                  class="block px-3 py-2 text-sm hover:bg-gray-100"
-                  @click="closeMenu"
-              >
-                Painel ADM
-              </router-link>
-
-              <div class="my-1 border-t"></div>
-
-              <!-- Sair centralizado -->
+                to="/contact"
+                class="block px-4 py-2 hover:bg-gray-100 text-sm"
+                @click="closeMenu"
+              >Serviços</router-link>
+              <router-link
+                v-if="isAdmin"
+                to="/admin"
+                class="block px-4 py-2 hover:bg-gray-100 text-sm"
+                @click="closeMenu"
+              >Painel ADM</router-link>
               <button
-                  @click="closeMenu(); logout()"
-                  class="w-full px-3 py-2 text-sm hover:bg-gray-100 text-red-600 font-medium flex items-center justify-center"
+                @click="closeMenu(); logout()"
+                class="block w-full px-4 py-2 text-red-600 hover:bg-gray-100 text-sm text-left font-medium"
               >
                 Sair
               </button>
@@ -132,16 +126,18 @@
       </div>
     </header>
 
-    <!-- Conteúdo -->
-    <div class="flex-grow">
-      <UserStats
+    <!-- CONTEÚDO -->
+    <div class="flex-grow px-4 py-6 sm:py-10">
+      <div class="max-w-6xl mx-auto">
+        <UserStats
           v-if="$route.path === '/dashboard' && authReady"
           :key="authReady ? 'dash-on' : 'dash-off'"
           :authReady="authReady"
           @loading="onChildLoading"
           @ready="onChildReady"
-      />
-      <router-view v-else />
+        />
+        <router-view v-else />
+      </div>
     </div>
   </div>
 </template>
@@ -165,28 +161,28 @@ export default {
   },
 
   async created() {
-    const hashParams   = new URLSearchParams((window.location.hash || '').replace(/^#/, ''))
+    const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''))
     const searchParams = new URLSearchParams(window.location.search)
 
     const tokenFromHash = hashParams.get('token')
-    const userFromHash  = hashParams.get('user')
-    const roleFromHash  = hashParams.get('role')
+    const userFromHash = hashParams.get('user')
+    const roleFromHash = hashParams.get('role')
 
-    const tokenFromUrl  = tokenFromHash || searchParams.get('token')
-    const user          = userFromHash  || searchParams.get('user')
-    const role          = roleFromHash  || searchParams.get('role')
+    const tokenFromUrl = tokenFromHash || searchParams.get('token')
+    const user = userFromHash || searchParams.get('user')
+    const role = roleFromHash || searchParams.get('role')
 
     this.userName = user || localStorage.getItem('user_name') || 'Usuário'
     if (role) localStorage.setItem('user_role', role)
 
     this.applyAuthToken(tokenFromUrl)
 
-    // Limpa query/hash da URL
+    // Limpa a URL
     if (tokenFromUrl || user || role) {
       const url = new URL(window.location.href)
-      ;['token','user','role'].forEach(k => searchParams.delete(k))
+      ;['token', 'user', 'role'].forEach(k => searchParams.delete(k))
       url.search = searchParams.toString() ? `?${searchParams}` : ''
-      ;['token','user','role'].forEach(k => hashParams.delete(k))
+      ;['token', 'user', 'role'].forEach(k => hashParams.delete(k))
       url.hash = hashParams.toString() ? `#${hashParams}` : ''
       window.history.replaceState({}, '', url.toString())
     }
@@ -201,32 +197,35 @@ export default {
     }
   },
 
-  watch: {
-    $route() {
-      this.menuOpen = false // fecha dropdown ao navegar
-    }
-  },
-
   computed: {
-    isAdmin() { return this.userRole === 'adm' },
+    isAdmin() {
+      return this.userRole === 'adm'
+    },
     pageTitle() {
       switch (this.$route.path) {
-        case '/schedule': return 'Agendar Serviços'
-        case '/contact':  return 'Serviços'
-        case '/admin':    return 'Painel ADM'
-        default:          return 'Home'
+        case '/schedule':
+          return 'Agendar Serviços'
+        case '/contact':
+          return 'Serviços'
+        case '/admin':
+          return 'Painel Administrativo'
+        default:
+          return 'Home'
       }
     },
     showOverlay() {
-      return this.$route.path === '/dashboard'
-          && this.authReady
-          && (this.childLoading || !this.childReady)
-    }
+      return (
+        this.$route.path === '/dashboard' &&
+        this.authReady &&
+        (this.childLoading || !this.childReady)
+      )
+    },
   },
 
   methods: {
-    closeMenu() { this.menuOpen = false },
-
+    closeMenu() {
+      this.menuOpen = false
+    },
     onChildLoading(flag) {
       this.childLoading = !!flag
     },
@@ -234,7 +233,6 @@ export default {
       this.childReady = true
       this.childLoading = false
     },
-
     applyAuthToken(tokenMaybe) {
       const token = tokenMaybe || localStorage.getItem('auth_token')
       if (tokenMaybe) localStorage.setItem('auth_token', tokenMaybe)
@@ -243,7 +241,6 @@ export default {
       }
       this.authReady = !!token
     },
-
     async fetchMe() {
       try {
         const { data } = await api.get('/me')
@@ -252,65 +249,66 @@ export default {
         if (data?.name) localStorage.setItem('user_name', data.name)
         if (data?.role) localStorage.setItem('user_role', data.role)
       } catch (e) {
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('user_role')
-        localStorage.removeItem('user_name')
-        this.userRole = ''
+        localStorage.clear()
         this.authReady = false
-        if (this.$route.path !== '/') {
-          try {
-            await this.$router.push('/')
-          } catch (err) {
-            if (process.env.NODE_ENV !== 'production') {
-              console.debug('[router push /] ignorado:', err?.message || err)
-            }
-          }
-        }
+        this.$router.push('/')
       }
     },
-
-    isActiveRoute(route) { return this.$route.path === route },
-
+    isActiveRoute(route) {
+      return this.$route.path === route
+    },
     navLinkClass(path) {
       return [
-        'rounded whitespace-nowrap transition',
+        'transition font-medium',
         this.isActiveRoute(path)
-            ? 'bg-white/20 font-semibold'
-            : 'bg-white/10 hover:bg-white/20'
+          ? 'bg-white text-[#c06a28]'
+          : 'bg-white/10 hover:bg-white/20 text-white',
       ]
     },
-
     async logout() {
       try {
         await api.post('/logout')
-      } catch (e) {
-        if (process.env.NODE_ENV !== 'production') {
-          console.debug('[logout] erro ignorado', e?.message || e)
-        }
+      } catch {
+        // ignora erros de logout
       } finally {
-        localStorage.removeItem('auth_token')
-        localStorage.removeItem('user_role')
-        localStorage.removeItem('user_name')
-        this.userRole = ''
-        this.authReady = false
-        try {
-          await this.$router.push('/')
-        } catch (err) {
-          if (process.env.NODE_ENV !== 'production') {
-            console.debug('[router push /] ignorado:', err?.message || err)
-          }
-        }
+        localStorage.clear()
+        this.$router.push('/')
       }
-    }
-  }
+    },
+  },
 }
 </script>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active { transition: opacity .15s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-.sr-only {
-  position: absolute; width:1px; height:1px; padding:0; margin:-1px;
-  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease;
+}
+
+/* Mobile ajustes */
+@media (max-width: 640px) {
+  header img {
+    display: none;
+  }
 }
 </style>

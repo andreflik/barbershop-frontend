@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <style>
+      .hair { fill: #0e1a22; }
+      .skin { fill: #f4f1ed; }
+      .orange { fill: #c06a28; }
+      .text { fill: #0e1a22; font-family: 'Playfair Display', serif; font-weight: 700; }
+    </style>
+  </defs>
+
+  <!-- Círculo central -->
+  <circle cx="256" cy="200" r="85" class="orange"/>
+
+  <!-- Cabeça/barba -->
+  <path class="hair" d="M256 120c-35 0-60 25-60 65 0 28 12 53 33 68v15c0 6 4 11 10 11h34c6 0 10-5 10-11v-15c21-15 33-40 33-68 0-40-25-65-60-65z"/>
+  <circle cx="256" cy="190" r="20" class="skin"/>
+
+  <!-- Postes laterais -->
+  <rect x="115" y="150" width="25" height="100" rx="8" class="hair"/>
+  <rect x="372" y="150" width="25" height="100" rx="8" class="hair"/>
+  <path class="orange" d="M115 150l25 100M372 150l25 100" stroke="#c06a28" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Texto -->
+  <text x="50%" y="380" text-anchor="middle" class="text" font-size="40">MARQUINHOS</text>
+  <text x="50%" y="420" text-anchor="middle" class="text" font-size="24" letter-spacing="4">BARBERSHOP</text>
+</svg>

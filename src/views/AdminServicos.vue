@@ -1,12 +1,10 @@
 <template>
-  <div class="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
-    <!-- Overlay de carregamento em tela cheia -->
+  <div class="max-w-6xl mx-auto p-4 sm:p-6 space-y-6 font-[Outfit] text-gray-900">
+    <!-- Overlay -->
     <transition name="fade">
       <div
-          v-if="loading || saving"
-          class="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9999] flex items-center justify-center"
-          role="status"
-          aria-live="polite"
+        v-if="loading || saving"
+        class="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9999] flex items-center justify-center"
       >
         <div class="bg-white p-6 rounded-xl shadow-lg flex items-center gap-3">
           <div class="h-6 w-6 border-4 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
@@ -17,203 +15,209 @@
 
     <h2 class="text-2xl font-bold text-center">Serviços</h2>
 
-    <!-- Barra de busca / ações -->
-    <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+    <!-- Busca e ações -->
+    <div class="flex flex-col sm:flex-row sm:items-center gap-3">
       <input
-          v-model="q"
-          placeholder="Buscar..."
-          class="border p-2 rounded flex-1 min-w-[200px]"
-          :disabled="loading || saving"
+        v-model="q"
+        placeholder="Buscar..."
+        class="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-[#c06a28] focus:outline-none"
+        :disabled="loading || saving"
       />
       <div class="flex gap-2">
         <button
-            @click="fetchServicos"
-            :disabled="loading || saving"
-            class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
+          @click="fetchServicos"
+          :disabled="loading || saving"
+          class="px-5 py-2 rounded-full bg-[#c06a28] hover:bg-[#a15721] text-white font-medium text-sm shadow-sm transition disabled:opacity-60"
         >
           Buscar
         </button>
         <button
-            @click="abrirNovo"
-            :disabled="loading || saving"
-            class="bg-green-600 text-white px-4 py-2 rounded disabled:opacity-60"
+          @click="abrirNovo"
+          :disabled="loading || saving"
+          class="px-5 py-2 rounded-full bg-green-600 hover:bg-green-700 text-white font-medium text-sm shadow-sm transition disabled:opacity-60"
         >
           Novo
         </button>
       </div>
     </div>
 
-    <!-- LISTA MOBILE (até md) -->
+    <!-- Lista Mobile -->
     <div class="md:hidden space-y-3">
       <div
-          v-for="s in (servicos.data || [])"
-          :key="s.id"
-          class="bg-white rounded-lg shadow border p-3"
+        v-for="s in (servicos.data || [])"
+        :key="s.id"
+        class="bg-white rounded-2xl shadow border p-4"
       >
         <div class="text-sm">
           <div class="flex items-center justify-between">
-            <strong class="truncate max-w-[60%]">{{ s.servico }}</strong>
+            <strong class="truncate max-w-[65%]">{{ s.servico }}</strong>
             <span class="text-gray-600">{{ formatMoney(s.preco) }}</span>
           </div>
-          <div class="text-gray-600 mt-1">Código: {{ s.codigo }}</div>
+          <div class="text-gray-500 mt-1 text-xs">Código: {{ s.codigo }}</div>
         </div>
-        <div class="mt-3 flex gap-2">
+
+        <div class="mt-4 flex gap-2">
           <button
-              @click="editar(s)"
-              :disabled="saving || loading"
-              class="flex-1 px-3 py-2 bg-yellow-500 text-white rounded disabled:opacity-60"
+            @click="editar(s)"
+            :disabled="saving || loading"
+            class="flex-1 px-4 py-2 rounded-full bg-[#c06a28] hover:bg-[#a15721] text-white text-sm font-medium transition disabled:opacity-60"
           >
             Editar
           </button>
           <button
-              @click="remover(s.id)"
-              :disabled="saving || loading"
-              class="flex-1 px-3 py-2 bg-red-600 text-white rounded disabled:opacity-60"
+            @click="remover(s.id)"
+            :disabled="saving || loading"
+            class="flex-1 px-4 py-2 rounded-full bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition disabled:opacity-60"
           >
             Excluir
           </button>
         </div>
       </div>
 
-      <p v-if="!loading && (!servicos.data || !servicos.data.length)" class="text-center text-gray-500">
-        Sem dados
+      <p
+        v-if="!loading && (!servicos.data || !servicos.data.length)"
+        class="text-center text-gray-500"
+      >
+        Nenhum serviço encontrado.
       </p>
     </div>
 
-    <!-- TABELA (md e acima) -->
-    <div class="hidden md:block overflow-x-auto">
-      <table class="w-full table-fixed text-sm">
-        <colgroup>
-          <col class="w-[120px]" />
-          <col class="w-auto" />
-          <col class="w-[140px]" />
-          <col class="w-[180px]" />
-        </colgroup>
-        <thead class="bg-gray-200">
-        <tr>
-          <th class="px-4 py-2 text-left">Código</th>
-          <th class="px-4 py-2 text-left">Serviço</th>
-          <th class="px-4 py-2 text-left">Preço</th>
-          <th class="px-4 py-2"></th>
-        </tr>
+    <!-- Tabela Desktop -->
+    <div class="hidden md:block overflow-x-auto rounded-3xl border border-gray-200 shadow">
+      <table class="w-full text-sm">
+        <thead class="bg-[#fafafa] border-b">
+          <tr class="text-gray-700">
+            <th class="py-3 px-4 text-left font-semibold">Código</th>
+            <th class="py-3 px-4 text-left font-semibold">Serviço</th>
+            <th class="py-3 px-4 text-left font-semibold">Preço</th>
+            <th class="py-3 px-4 text-center font-semibold">Ações</th>
+          </tr>
         </thead>
         <tbody>
-        <tr
+          <tr
             v-for="s in (servicos.data || [])"
             :key="s.id"
-            class="border-b"
-        >
-          <td class="px-4 py-2 whitespace-nowrap">{{ s.codigo }}</td>
-          <td class="px-4 py-2">
-            <span class="block max-w-[520px] truncate">{{ s.servico }}</span>
-          </td>
-          <td class="px-4 py-2 whitespace-nowrap">{{ formatMoney(s.preco) }}</td>
-          <td class="px-4 py-2 text-right space-x-2">
-            <button
+            class="hover:bg-[#fdf8f5] border-b"
+          >
+            <td class="py-3 px-4 whitespace-nowrap">{{ s.codigo }}</td>
+            <td class="py-3 px-4 truncate">{{ s.servico }}</td>
+            <td class="py-3 px-4 whitespace-nowrap">{{ formatMoney(s.preco) }}</td>
+            <td class="py-3 px-4 text-center space-x-2">
+              <button
                 @click="editar(s)"
                 :disabled="saving || loading"
-                class="px-3 py-1 bg-yellow-500 text-white rounded disabled:opacity-60"
-            >
-              Editar
-            </button>
-            <button
+                class="px-4 py-1.5 rounded-full bg-[#c06a28] hover:bg-[#a15721] text-white text-sm font-medium transition disabled:opacity-60"
+              >
+                Editar
+              </button>
+              <button
                 @click="remover(s.id)"
                 :disabled="saving || loading"
-                class="px-3 py-1 bg-red-600 text-white rounded disabled:opacity-60"
-            >
-              Excluir
-            </button>
-          </td>
-        </tr>
-
-        <tr v-if="!loading && (!servicos.data || !servicos.data.length)">
-          <td colspan="4" class="text-center text-gray-500 py-4">Sem dados</td>
-        </tr>
+                class="px-4 py-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition disabled:opacity-60"
+              >
+                Excluir
+              </button>
+            </td>
+          </tr>
+          <tr v-if="!loading && (!servicos.data || !servicos.data.length)">
+            <td colspan="4" class="text-center py-6 text-gray-500">
+              Nenhum serviço encontrado.
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>
 
     <!-- Paginação -->
     <div
-        v-if="servicos && (servicos.last_page || 1) > 1"
-        class="flex items-center justify-center gap-2"
+      v-if="servicos && (servicos.last_page || 1) > 1"
+      class="flex items-center justify-center gap-3 pt-5"
     >
       <button
-          :disabled="!servicos.prev_page_url || loading || saving"
-          @click="goto(servicos.current_page - 1)"
-          class="px-3 py-1 border rounded disabled:opacity-60"
+        :disabled="!servicos.prev_page_url || loading || saving"
+        @click="goto(servicos.current_page - 1)"
+        class="px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-sm"
       >
         Anterior
       </button>
-      <span>Página {{ servicos.current_page || 1 }} de {{ servicos.last_page || 1 }}</span>
+      <span class="text-sm text-gray-600">
+        Página {{ servicos.current_page || 1 }} de {{ servicos.last_page || 1 }}
+      </span>
       <button
-          :disabled="!servicos.next_page_url || loading || saving"
-          @click="goto(servicos.current_page + 1)"
-          class="px-3 py-1 border rounded disabled:opacity-60"
+        :disabled="!servicos.next_page_url || loading || saving"
+        @click="goto(servicos.current_page + 1)"
+        class="px-4 py-2 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-sm"
       >
         Próxima
       </button>
     </div>
 
     <!-- Modal -->
-    <div
+    <transition name="fade">
+      <div
         v-if="modal"
         class="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-    >
-      <div class="bg-white p-6 rounded-xl space-y-4 w-full max-w-md mx-3">
-        <h3 class="text-xl font-semibold">
-          {{ form.id ? 'Editar' : 'Novo' }} Serviço
-        </h3>
+      >
+        <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mx-3 space-y-4">
+          <h3 class="text-xl font-semibold text-center text-[#1a1a1a]">
+            {{ form.id ? 'Editar Serviço' : 'Novo Serviço' }}
+          </h3>
 
-        <label class="block text-sm font-medium">Código *</label>
-        <input
-            v-model.trim="form.codigo"
-            placeholder="Ex.: CMQ"
-            class="border p-2 w-full rounded"
-            required
-            :disabled="saving"
-        />
+          <div class="space-y-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Código *</label>
+              <input
+                v-model.trim="form.codigo"
+                placeholder="Ex.: CMQ"
+                class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:ring-2 focus:ring-[#c06a28] focus:outline-none"
+                required
+              />
+            </div>
 
-        <label class="block text-sm font-medium mt-2">Nome do serviço *</label>
-        <input
-            v-model.trim="form.servico"
-            placeholder="Ex.: Corte de Máquina"
-            class="border p-2 w-full rounded"
-            required
-            :disabled="saving"
-        />
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Nome do serviço *</label>
+              <input
+                v-model.trim="form.servico"
+                placeholder="Ex.: Corte de Máquina"
+                class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:ring-2 focus:ring-[#c06a28] focus:outline-none"
+                required
+              />
+            </div>
 
-        <label class="block text-sm font-medium mt-2">Preço (R$) *</label>
-        <input
-            v-model.number="form.preco"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="Ex.: 30.00"
-            class="border p-2 w-full rounded"
-            required
-            :disabled="saving"
-        />
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Preço (R$) *</label>
+              <input
+                v-model.number="form.preco"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Ex.: 30.00"
+                class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:ring-2 focus:ring-[#c06a28] focus:outline-none"
+                required
+              />
+            </div>
+          </div>
 
-        <div class="flex justify-end gap-2 pt-2">
-          <button
+          <div class="flex justify-end gap-2 pt-4">
+            <button
               @click="salvar"
               :disabled="saving"
-              class="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-60"
-          >
-            <span v-if="saving">Salvando…</span>
-            <span v-else>Salvar</span>
-          </button>
-          <button
+              class="px-5 py-2 rounded-full bg-[#c06a28] hover:bg-[#a15721] text-white font-medium text-sm transition disabled:opacity-60"
+            >
+              <span v-if="saving">Salvando…</span>
+              <span v-else>Salvar</span>
+            </button>
+            <button
               @click="fechar"
               :disabled="saving"
-              class="border px-4 py-2 rounded disabled:opacity-60"
-          >
-            Cancelar
-          </button>
+              class="px-5 py-2 rounded-full border border-gray-300 hover:bg-gray-50 text-sm font-medium disabled:opacity-60"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </transition>
   </div>
 </template>
 
@@ -226,7 +230,7 @@ export default {
   data() {
     return {
       q: '',
-      servicos: { data: [], current_page: 1, last_page: 1, prev_page_url: null, next_page_url: null },
+      servicos: { data: [], current_page: 1, last_page: 1 },
       page: 1,
       modal: false,
       saving: false,
@@ -243,7 +247,7 @@ export default {
       try {
         const res = await api.get('/admin/servicos', { params: { q: this.q, page: this.page } })
         this.servicos = res.data || { data: [], current_page: 1, last_page: 1 }
-      } catch (e) {
+      } catch {
         toastError('Erro ao carregar serviços.')
         this.servicos = { data: [], current_page: 1, last_page: 1 }
       } finally {
@@ -264,36 +268,14 @@ export default {
       this.modal = true
     },
     fechar() { this.modal = false },
-
-    async confirmar(texto) {
-      if (window.Swal && typeof window.Swal.fire === 'function') {
-        const { isConfirmed } = await window.Swal.fire({
-          icon: 'question',
-          title: 'Confirmação',
-          text: texto || 'Deseja continuar?',
-          showCancelButton: true,
-          confirmButtonText: 'Sim',
-          cancelButtonText: 'Cancelar'
-        })
-        return isConfirmed
-      }
-      return window.confirm(texto || 'Deseja continuar?')
-    },
-
     async salvar() {
-      const payload = {
-        codigo: (this.form.codigo || '').trim(),
-        servico: (this.form.servico || '').trim(),
-        preco: Number(this.form.preco ?? 0),
-      }
-
-      if (!payload.codigo || !payload.servico) {
+      if (!this.form.codigo || !this.form.servico) {
         toastWarning('Preencha Código e Serviço.')
         return
       }
-
       this.saving = true
       try {
+        const payload = { codigo: this.form.codigo, servico: this.form.servico, preco: this.form.preco }
         if (this.form.id) {
           await api.put(`/admin/servicos/${this.form.id}`, payload)
           toastSuccess('Serviço atualizado.')
@@ -303,28 +285,25 @@ export default {
         }
         this.modal = false
         await this.fetchServicos()
-      } catch (e) {
+      } catch {
         toastError('Falha ao salvar serviço.')
       } finally {
         this.saving = false
       }
     },
-
     async remover(id) {
-      const ok = await this.confirmar('Excluir este serviço?')
-      if (!ok) return
+      if (!confirm('Deseja realmente excluir este serviço?')) return
       this.loading = true
       try {
         await api.delete(`/admin/servicos/${id}`)
         toastSuccess('Serviço excluído.')
         await this.fetchServicos()
-      } catch (e) {
+      } catch {
         toastError('Falha ao excluir serviço.')
       } finally {
         this.loading = false
       }
     },
-
     formatMoney(v) {
       const n = Number(v ?? 0)
       return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n)
@@ -334,6 +313,7 @@ export default {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
 .fade-enter-active, .fade-leave-active { transition: opacity .15s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
