@@ -54,12 +54,12 @@
             >
               <option disabled value="">Selecione o horário</option>
               <option
-                  v-for="hour in allTimes"
-                  :key="hour"
-                  :value="hour"
-                  :disabled="bookedTimes.includes(hour)"
+                v-for="hour in allTimes"
+                :key="hour"
+                :value="hour"
+                :disabled="bookedTimes.includes(hour) || lunchBlockedTimes.includes(hour)"
               >
-                {{ hour }}{{ bookedTimes.includes(hour) ? ' (Indisponível)' : '' }}
+                {{ hour }}{{ bookedTimes.includes(hour) || lunchBlockedTimes.includes(hour) ? ' (Indisponível)' : '' }}
               </option>
             </select>
           </div>
@@ -141,6 +141,7 @@ export default {
       servicos: [],
       bookedTimes: [],
       allTimes: this.generateTimeSlots('07:00', '18:00', 30),
+       lunchBlockedTimes: ["12:00", "12:30" ,"13:00"],
     }
   },
 
