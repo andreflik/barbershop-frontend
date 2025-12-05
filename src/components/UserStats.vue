@@ -42,12 +42,15 @@
               {{ (item.hora_agendamento || item.hora_ini || '').slice(0, 5) }}
             </td>
             <td class="px-2 sm:px-4 py-2">
-              <span
-                  class="block truncate sm:whitespace-normal sm:break-words max-w-[160px] sm:max-w-none"
-                  :title="item?.servico?.servico || item?.servico?.nome || item?.servico?.name || getServicoNome(item.servico_id)"
-              >
-                {{ item?.servico?.servico || item?.servico?.nome || item?.servico?.name || getServicoNome(item.servico_id) }}
-              </span>
+              <div class="flex flex-wrap gap-1">
+                <span
+                  v-for="(srv, i) in item.servicos"
+                  :key="i"
+                  class="bg-blue-600 text-white px-2 py-1 rounded-full text-xs"
+                >
+                  {{ srv.nome }}
+                </span>
+              </div>
             </td>
             <td class="px-1 sm:px-2 py-2 text-center">
               <button

@@ -44,6 +44,7 @@
 
         <!-- Horário & Serviço -->
         <div class="mt-4 flex flex-col md:flex-row md:space-x-4 space-y-3 md:space-y-0">
+          <!-- Horário -->
           <div class="md:w-1/2">
             <label class="block text-sm font-medium mb-1">Horário</label>
             <select
@@ -54,29 +55,57 @@
             >
               <option disabled value="">Selecione o horário</option>
               <option
-                v-for="hour in allTimes"
-                :key="hour"
-                :value="hour"
-                :disabled="bookedTimes.includes(hour) || lunchBlockedTimes.includes(hour)"
+                  v-for="hour in allTimes"
+                  :key="hour"
+                  :value="hour"
+                  :disabled="bookedTimes.includes(hour) || lunchBlockedTimes.includes(hour)"
               >
-                {{ hour }}{{ bookedTimes.includes(hour) || lunchBlockedTimes.includes(hour) ? ' (Indisponível)' : '' }}
+                {{ hour }}{{ (bookedTimes.includes(hour) || lunchBlockedTimes.includes(hour)) ? ' (Indisponível)' : '' }}
               </option>
             </select>
           </div>
 
+          <!-- Serviços (até 3) -->
           <div class="md:w-1/2">
-            <label class="block text-sm font-medium mb-1">Serviço</label>
-            <select
-                v-model.number="selectedService"
-                class="border rounded w-full px-2 py-2 text-sm"
-                :disabled="loading"
-                required
-            >
-              <option disabled :value="null">Selecione o serviço</option>
-              <option v-for="s in servicos" :key="s.id" :value="s.id">
-                {{ s.label }}
-              </option>
-            </select>
+            <label class="block text-sm font-medium mb-1">
+              Serviços (até {{ maxServicesPerBooking }})
+            </label>
+            <div class="border rounded w-full px-3 py-2 text-sm bg-white max-h-40 overflow-y-auto">
+              <div
+                  v-if="!servicos.length"
+                  class="text-xs text-gray-500"
+              >
+                Nenhum serviço disponível.
+              </div>
+
+              <div
+                  v-for="s in servicos"
+                  :key="s.id"
+                  class="flex items-center gap-2 py-1"
+              >
+                <input
+                    type="checkbox"
+                    :id="`svc-${s.id}`"
+                    :value="s.id"
+                    v-model="selectedServices"
+                    :disabled="loading || (selectedServices.length >= maxServicesPerBooking && !selectedServices.includes(s.id))"
+                    class="cursor-pointer"
+                />
+                <label
+                    :for="`svc-${s.id}`"
+                    class="cursor-pointer select-none"
+                >
+                  {{ s.label }}
+                  <span v-if="s.preco && s.preco > 0" class="text-xs text-gray-500">
+                    — R$ {{ Number(s.preco).toFixed(2) }}
+                  </span>
+                </label>
+              </div>
+
+              <p class="mt-1 text-xs text-gray-500">
+                Se escolher 2 ou 3 serviços, o sistema bloqueia 2 horas de agenda a partir do horário escolhido.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -85,6 +114,9 @@
           <p>
             <span v-if="formattedDate">{{ formattedDate }}</span>
             <span v-if="selectedTime"> às {{ selectedTime }}</span>
+            <span v-if="selectedServices.length">
+              — {{ selectedServices.length }} serviço(s) selecionado(s)
+            </span>
           </p>
         </div>
 
@@ -109,15 +141,6 @@ import { toastError, toastWarning, toastSuccess } from '@/plugins/alerts'
 
 const API_URL = process.env.VUE_APP_API_URL
 
-const translateValidation = (msg = '') => {
-  const lower = String(msg).toLowerCase()
-  if (lower.includes('must be a date after or equal to today')) return 'A data de agendamento deve ser hoje ou uma data futura.'
-  if (lower.includes('must be a date after today')) return 'A data de agendamento deve ser uma data futura.'
-  if (lower.includes('is required')) return 'Campo obrigatório.'
-  if (lower.includes('must be a valid date')) return 'Informe uma data válida.'
-  return msg || 'Dados inválidos.'
-}
-
 export default {
   name: 'UserSchedule',
 
@@ -136,12 +159,18 @@ export default {
 
       selectedDate: new Date(),
       selectedTime: '',
-      selectedService: null,
+      selectedServices: [],
 
       servicos: [],
       bookedTimes: [],
       allTimes: this.generateTimeSlots('07:00', '18:00', 30),
-       lunchBlockedTimes: ["12:00", "12:30" ,"13:00"],
+
+      // almoço fixo
+      lunchBlockedTimes: ['12:00', '12:30', '13:00'],
+
+      // regra de negócios
+      maxServicesPerBooking: 3,
+      slotMinutes: 30
     }
   },
 
@@ -174,7 +203,7 @@ export default {
   },
 
   methods: {
-    async runWithLoading(promise) {
+    async runWithLoading (promise) {
       this.loading = true
       try { return await promise }
       finally { this.loading = false }
@@ -266,8 +295,24 @@ export default {
     async scheduleEvent () {
       const d0 = new Date(this.selectedDate || 0)
       const onlyDay = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate())
-      if (!this.selectedDate || onlyDay < this.todayStart || !this.selectedTime || this.selectedService == null) {
-        toastWarning('Selecione uma data futura (ou hoje), horário e serviço.')
+      if (!this.selectedDate || onlyDay < this.todayStart || !this.selectedTime) {
+        toastWarning('Selecione uma data futura (ou hoje) e um horário.')
+        return
+      }
+
+      if (!this.selectedServices.length) {
+        toastWarning('Selecione pelo menos um serviço.')
+        return
+      }
+
+      if (this.selectedServices.length > this.maxServicesPerBooking) {
+        toastWarning(`Selecione no máximo ${this.maxServicesPerBooking} serviços.`)
+        return
+      }
+
+      if (this.lunchBlockedTimes.includes(this.selectedTime)) {
+        this.selectedTime = ''
+        toastWarning('Horários de almoço não estão disponíveis.')
         return
       }
 
@@ -287,7 +332,7 @@ export default {
             body: JSON.stringify({
               data_agendamento: d,
               hora_agendamento: this.selectedTime,
-              servico_id: this.selectedService
+              servicos: this.selectedServices
             })
           })
           const json = await r.json()
@@ -295,16 +340,8 @@ export default {
           if (r.ok) {
             await this.fetchBookedTimes()
             this.selectedTime = ''
+            this.selectedServices = []
             toastSuccess(json.message || 'Agendamento salvo com sucesso!')
-          } else if (r.status === 422 && json.errors) {
-            const errs = json.errors || {}
-            if (errs.data_agendamento && errs.data_agendamento.length) {
-              toastError('A data de agendamento deve ser hoje ou uma data futura.')
-            } else {
-              const first = Object.values(errs)[0]
-              const raw = Array.isArray(first) ? first[0] : (first || 'Dados inválidos.')
-              toastError(translateValidation(raw))
-            }
           } else {
             toastError(json.message || 'Erro ao salvar o agendamento.')
           }
@@ -318,9 +355,9 @@ export default {
 
   watch: {
     selectedTime (v) {
-      if (this.bookedTimes.includes(v)) {
+      if (this.bookedTimes.includes(v) || this.lunchBlockedTimes.includes(v)) {
         this.selectedTime = ''
-        toastWarning('Esse horário já está agendado. Escolha outro.')
+        toastWarning('Esse horário não está disponível.')
       }
     }
   }

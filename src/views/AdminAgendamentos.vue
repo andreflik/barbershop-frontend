@@ -289,9 +289,12 @@ export default {
       return a?.usuario?.name || a?.usuario || '-'
     },
     servicoNome(a) {
-      const s = a?.servico
-      return s?.nome || s?.servico || s?.name || s || '-'
-    },
+  if (Array.isArray(a.servicos)) {
+    return a.servicos.map(s => s.nome || s.servico).join(', ')
+  }
+  const s = a?.servico
+  return s?.nome || s?.servico || s?.name || s || '-'
+},
     formatDate(d) {
   if (!d) return '-'
 
