@@ -55,13 +55,14 @@
             >
               <option disabled value="">Selecione o horário</option>
               <option
-                  v-for="hour in allTimes"
-                  :key="hour"
-                  :value="hour"
-                  :disabled="bookedTimes.includes(hour) || lunchBlockedTimes.includes(hour)"
-              >
-                {{ hour }}{{ (bookedTimes.includes(hour) || lunchBlockedTimes.includes(hour)) ? ' (Indisponível)' : '' }}
-              </option>
+  v-for="hour in allTimes"
+  :key="hour"
+  :value="hour"
+  :disabled="isTimeUnavailable(hour)"
+>
+  {{ hour }}{{ isTimeUnavailable(hour) ? ' (Indisponível)' : '' }}
+</option>
+
             </select>
           </div>
 
@@ -291,6 +292,33 @@ export default {
         toastError('Falha ao conectar com o servidor.')
       }
     },
+
+    slotsRequired () {
+  if (this.selectedServices.length <= 1) return 1
+  if (this.selectedServices.length === 2) return 3
+  return 4 // 3 serviços = 4 slots (2h)
+},
+
+isTimeUnavailable (hour) {
+  const startIndex = this.allTimes.indexOf(hour)
+  if (startIndex === -1) return true
+
+  const required = this.slotsRequired()
+  let slotsCount = 0
+
+  for (let i = startIndex; i < this.allTimes.length; i++) {
+    const slot = this.allTimes[i]
+
+    if (this.lunchBlockedTimes.includes(slot)) continue
+
+    if (this.bookedTimes.includes(slot)) return true
+
+    slotsCount++
+    if (slotsCount >= required) return false
+  }
+
+  return true
+},
 
     async scheduleEvent () {
       const d0 = new Date(this.selectedDate || 0)
