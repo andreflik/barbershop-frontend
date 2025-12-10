@@ -191,7 +191,15 @@ export default {
       await this.fetchMe()
     }
 
-    if (this.authReady && this.$route.path === '/dashboard') {
+    setTimeout(() => {
+      if(this.childLoading && !this.childReady){
+        console.warn('🛑 Timeout: escondendo overlay de emergência')
+        this.childLoading = false
+        this.childReady = true
+      }
+    }, 8000)
+
+    if (this.$route.path === '/dashboard') {
       this.childLoading = true
       this.childReady = false
     }
