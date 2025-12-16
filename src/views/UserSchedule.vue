@@ -49,8 +49,8 @@
             <label class="block text-sm font-medium mb-1">Horário</label>
             <select
                 v-model="selectedTime"
-                class="border rounded w-full px-2 py-2 text-sm"
-                :disabled="loading"
+                class="border rounded w-full px-2 py-2 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+                :disabled="isTimeSelectDisabled"
                 required
             >
               <option disabled value="">Selecione o horário</option>
@@ -89,7 +89,7 @@
                     :id="`svc-${s.id}`"
                     :value="s.id"
                     v-model="selectedServices"
-                    :disabled="loading || (selectedServices.length >= maxServicesPerBooking && !selectedServices.includes(s.id))"
+                    :disabled="loading || !hasSelectedDate || (selectedServices.length >= maxServicesPerBooking && !selectedServices.includes(s.id))"
                     class="cursor-pointer"
                 />
                 <label
@@ -158,7 +158,7 @@ export default {
         { key: 'sunday-pop',  dates: { weekdays: [0] }, popover: { visibility: 'hover' } }
       ],
 
-      selectedDate: new Date(),
+      selectedDate: null,
       selectedTime: '',
       selectedServices: [],
 
@@ -193,6 +193,14 @@ export default {
     },
     calendarAttrs () {
       return [...this.baseCalendarAttrs]
+    },
+
+    isTimeSelectDisabled(){
+      return this.loading || !this.selectedDate
+    },
+
+    hasSelectedDate() {
+      return  !!this.selectedDate
     }
   },
 
