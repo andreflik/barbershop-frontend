@@ -289,10 +289,13 @@ export default {
         })
         const json = await r.json()
         if (r.ok) {
-          this.bookedTimes = (json.bookedTimes || []).map(t =>
-              typeof t === 'string' && t.length >= 5 ? t.slice(0,5) : String(t)
+  const times = Array.isArray(json)
+    ? json
+    : (json.bookedTimes || [])
+          this.bookedTimes = times.map(t =>
+            typeof t === 'string' ? t.slice(0, 5) : String(t)
           )
-        } else {
+        }  else {
           toastError(json.message || 'Erro ao buscar horários.')
         }
       } catch (e) {
@@ -317,7 +320,7 @@ isTimeUnavailable (hour) {
   for (let i = startIndex; i < this.allTimes.length; i++) {
     const slot = this.allTimes[i]
 
-    if (this.lunchBlockedTimes.includes(slot)) continue
+    if (this.lunchBlockedTimes.includes(slot)) return true
 
     if (this.bookedTimes.includes(slot)) return true
 

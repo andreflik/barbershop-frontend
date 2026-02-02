@@ -194,35 +194,51 @@ export default {
         this.servicos = []
       }
     },
-    async fetchEstatisticas(page = 1) {
-      if (this.loading) return
-      this.loading = true
-      try {
-        const { data } = await api.get('/dashboard/estatisticas', { params: { ano: this.selectedYear, page } })
-        if (Array.isArray(data.agendamentosDetalhados)) {
-          this.agendamentosDetalhados = data.agendamentosDetalhados
-          this.pagination = data.pagination || { current_page: page, last_page: 1, total: data.agendamentosDetalhados.length }
-        } else if (data?.agendamentos?.data) {
-          this.agendamentosDetalhados = data.agendamentos.data
-          this.pagination = {
-            current_page: data.agendamentos.current_page || page,
-            last_page: data.agendamentos.last_page || 1,
-            total: data.agendamentos.total || data.agendamentos.data.length
-          }
-        } else if (Array.isArray(data.data)) {
-          this.agendamentosDetalhados = data.data
-          this.pagination = { current_page: page, last_page: 1, total: data.data.length }
-        } else {
-          this.agendamentosDetalhados = []
-          this.pagination = { current_page: 1, last_page: 1, total: 0 }
-        }
-      } catch {
-        this.agendamentosDetalhados = []
-        this.pagination = { current_page: 1, last_page: 1, total: 0 }
-      } finally {
-        this.loading = false
+
+  async fetchEstatisticas(page = 1) {
+  if (this.loading) return
+  this.loading = true
+
+  try {
+    const { data } = await api.get('/dashboard/estatisticas', {
+      params: {
+        ano: this.selectedYear,
+        page
       }
-    },
+    })
+
+    // ✅ FORMATO ATUAL DO BACKEND
+    if (Array.isArray(data.agendamentosDetalhados)) {
+      this.agendamentosDetalhados = data.agendamentosDetalhados
+      this.pagination = {
+        current_page: 1,
+        last_page: 1,
+        total: data.agendamentosDetalhados.length
+      }
+
+    // 🟡 fallback (caso mude para paginator no futuro)
+    } else if (Array.isArray(data.data)) {
+      this.agendamentosDetalhados = data.data
+      this.pagination = {
+        current_page: data.current_page || 1,
+        last_page: data.last_page || 1,
+        total: data.total || data.data.length
+      }
+
+    } else {
+      this.agendamentosDetalhados = []
+      this.pagination = { current_page: 1, last_page: 1, total: 0 }
+    }
+
+  } catch (e) {
+    console.error('[fetchEstatisticas]', e)
+    this.agendamentosDetalhados = []
+    this.pagination = { current_page: 1, last_page: 1, total: 0 }
+  } finally {
+    this.loading = false
+  }
+},
+
     async excluirAgendamento(id) {
       const ok = await confirmDialog({
         title: 'Tem certeza?',
