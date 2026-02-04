@@ -27,11 +27,28 @@ const routes = [
         name: 'AdmDashboard',
         component: () => import('../views/AdmDashboard.vue'),
         meta: { requiresAuth: true, requiresAdmin: true },
-        children: [
-            { path: '', redirect: { name: 'AdminAgendamentos' } }, // padrão: vai p/ agendamentos
-            { path: 'agendamentos', name: 'AdminAgendamentos', component: () => import('../views/AdminAgendamentos.vue') },
-            { path: 'servicos',     name: 'AdminServicos',      component: () => import('../views/AdminServicos.vue') },
-        ]
+       children: [
+                    { path: '', redirect: { name: 'AdminAgendamentos' } },
+
+                    {
+                        path: 'agendamentos',
+                        name: 'AdminAgendamentos',
+                        component: () => import('../views/AdminAgendamentos.vue')
+                    },
+
+                    {
+                        path: 'servicos',
+                        name: 'AdminServicos',
+                        component: () => import('../views/AdminServicos.vue')
+                    },
+
+                    {
+                        path: 'blocked-periods',
+                        name: 'AdminBlockedPeriods',
+                        component: () => import('../views/AdminBlockedPeriods.vue')
+                    }
+                ]
+
     }
 
 ];

@@ -30,17 +30,46 @@
             :disabled-dates="disabledDates"
             :attributes="calendarAttrs"
             @dayclick="onDayClick"
+            @update:page="onMonthChange"
         >
           <template #day-popover="{ day }">
+            <!-- Domingo -->
             <div v-if="day?.date && day.date.getDay() === 0">
               <div class="font-semibold">Sem atendimento</div>
               <div class="text-xs text-gray-500">Domingos estão indisponíveis</div>
             </div>
+
+            <!-- Dia bloqueado -->
+            <div v-else-if="isDayBlocked && sameDay(day.date, selectedDate)">
+              <div class="font-semibold text-red-600">Dia bloqueado</div>
+              <div class="text-xs text-gray-600">{{ blockedReason }}</div>
+            </div>
+
+            <!-- Normal -->
             <div v-else>
               <div class="text-sm">{{ formatFull(day.date) }}</div>
             </div>
           </template>
+
         </vc-calendar>
+
+        <!-- Aviso de dia bloqueado -->
+          <div
+            v-if="isDayBlocked"
+            class="mt-4 bg-red-50 border border-red-300 text-red-700 rounded-lg p-4 flex items-start gap-2"
+          >
+            <svg class="w-5 h-5 mt-0.5 text-red-500" fill="none" stroke="currentColor" stroke-width="2"
+                viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+
+            <div>
+              <p class="font-semibold">Sem atendimento neste dia</p>
+              <p class="text-sm">{{ blockedReason }}</p>
+            </div>
+          </div>
+
 
         <!-- Horário & Serviço -->
         <div class="mt-4 flex flex-col md:flex-row md:space-x-4 space-y-3 md:space-y-0">
@@ -123,7 +152,7 @@
 
         <button
             @click="scheduleEvent"
-            :disabled="loading"
+            :disabled="loading || isDayBlocked"
             class="mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-500 transition disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
         >
           <span
@@ -152,6 +181,10 @@ export default {
       loading: false,
       today: now,
       todayStart,
+      isDayBlocked: false,
+      blockedReason: null,
+      blockedDays: [],
+      blockedTimes: [],
 
       baseCalendarAttrs: [
         { key: 'all-days-pop', dates: { start: new Date(2000,0,1), end: new Date(2100,0,1) }, popover: { visibility: 'hover' } },
@@ -187,16 +220,31 @@ export default {
       const yyyy = d.getFullYear()
       return `${dd}/${mm}/${yyyy}`
     },
-    // Passado é bloqueado por min-date; aqui desabilitamos apenas domingos
     disabledDates () {
       return [{ weekdays: [0] }]
     },
+
     calendarAttrs () {
-      return [...this.baseCalendarAttrs]
+      const blockedAttrs = this.blockedDays.map(b => ({
+        key: `blocked-${b.date}`,
+        dates: new Date(b.date + 'T00:00:00'),
+        highlight: {
+          backgroundColor: '#fee2e2',
+          borderRadius: '6px',
+        },
+        popover: {
+          label: `Sem atendimento: ${b.reason}`,
+        },
+      }))
+
+      return [
+        ...this.baseCalendarAttrs,
+        ...blockedAttrs,
+      ]
     },
 
-    isTimeSelectDisabled(){
-      return this.loading || !this.selectedDate
+    isTimeSelectDisabled () {
+      return this.loading || !this.selectedDate || this.isDayBlocked
     },
 
     hasSelectedDate() {
@@ -205,9 +253,13 @@ export default {
   },
 
   async mounted () {
+    const y = this.today.getFullYear()
+    const m = this.today.getMonth() + 1
+  
     await this.runWithLoading(Promise.all([
       this.fetchServicos(),
-      this.fetchBookedTimes()
+      this.fetchBookedTimes(),
+      this.fetchBlockedDays(y, m)
     ]))
   },
 
@@ -258,59 +310,135 @@ export default {
       return times
     },
 
-    async onDayClick (day) {
-      const d = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate())
-      if (d < this.todayStart) {
-        toastError('Não é possível agendar em datas passadas.')
-        return
-      }
-      if (d.getDay() === 0) {
-        toastError('Domingos não estão disponíveis para agendamento.')
-        return
-      }
-      this.selectedDate = day.date
-      await this.runWithLoading(this.fetchBookedTimes())
-    },
+      async onDayClick (day) {
+        const d = new Date(day.date.getFullYear(), day.date.getMonth(), day.date.getDate())
 
-    async fetchBookedTimes () {
-      if (!this.selectedDate) return
-      this.selectedTime = ''
-
-      const token = localStorage.getItem('auth_token')
-      if (!token) {
-        toastError('Faça login novamente.')
-        return
-      }
-
-      const d = new Date(this.selectedDate).toISOString().split('T')[0]
-      try {
-        const r = await fetch(`${API_URL}/agendar-corte/${d}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        const json = await r.json()
-        if (r.ok) {
-  const times = Array.isArray(json)
-    ? json
-    : (json.bookedTimes || [])
-          this.bookedTimes = times.map(t =>
-            typeof t === 'string' ? t.slice(0, 5) : String(t)
-          )
-        }  else {
-          toastError(json.message || 'Erro ao buscar horários.')
+        if (d < this.todayStart) {
+          toastError('Não é possível agendar em datas passadas.')
+          return
         }
-      } catch (e) {
-        if (process.env.NODE_ENV !== 'production') console.debug('[fetchBookedTimes] erro:', e?.message || e)
-        toastError('Falha ao conectar com o servidor.')
-      }
+
+        if (d.getDay() === 0) {
+          toastError('Domingos não estão disponíveis para agendamento.')
+          return
+        }
+
+        const iso = d.toISOString().split('T')[0]
+        const blocked = this.blockedDays.find(b => b.date === iso)
+
+        // 🚫 Dia bloqueado pelo admin
+        if (blocked) {
+          this.selectedDate = d
+          this.isDayBlocked = true
+          this.blockedReason = blocked.reason
+
+          toastWarning(`Sem atendimento: ${blocked.reason}`)
+          return
+        }
+
+        // ✅ Dia normal
+        this.isDayBlocked = false
+        this.blockedReason = null
+        this.selectedDate = d
+
+        await this.runWithLoading(this.fetchBookedTimes())
     },
 
-    slotsRequired () {
-  if (this.selectedServices.length <= 1) return 1
-  if (this.selectedServices.length === 2) return 3
-  return 4 // 3 serviços = 4 slots (2h)
+   async fetchBookedTimes () {
+  this.isDayBlocked = false
+  this.blockedReason = null
+  this.bookedTimes = []
+
+  if (!this.selectedDate) return
+  this.selectedTime = ''
+
+  const token = localStorage.getItem('auth_token')
+  if (!token) {
+    toastError('Faça login novamente.')
+    return
+  }
+
+  const d = new Date(this.selectedDate).toISOString().split('T')[0]
+
+  try {
+    const r = await fetch(`${API_URL}/agendar-corte/${d}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+
+    const json = await r.json()
+
+    if (!r.ok) {
+      toastError(json.message || 'Erro ao buscar horários.')
+      return
+    }
+
+    // 🚫 Dia inteiro bloqueado
+    if (json.fullDay === true) {
+      this.isDayBlocked = true
+      this.blockedReason = json.reason || 'Dia indisponível'
+      toastWarning(`Sem agendamento: ${this.blockedReason}`)
+      return
+    }
+
+    // 🧩 Junta horários ocupados + horários bloqueados
+    const booked = Array.isArray(json.bookedTimes) ? json.bookedTimes : []
+    const blocked = Array.isArray(json.blockedTimes) ? json.blockedTimes : []
+
+    const merged = [...booked, ...blocked]
+
+    // Normaliza para HH:MM
+    this.bookedTimes = merged.map(t =>
+      typeof t === 'string' ? t.slice(0, 5) : String(t).slice(0, 5)
+    )
+
+  } catch (e) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[fetchBookedTimes] erro:', e?.message || e)
+    }
+    toastError('Falha ao conectar com o servidor.')
+  }
 },
 
-isTimeUnavailable (hour) {
+
+      async fetchBlockedDays (year, month) {
+        const token = localStorage.getItem('auth_token')
+        if (!token) return
+
+        const ym = `${year}-${String(month).padStart(2, '0')}`
+
+        try {
+          const r = await fetch(`${API_URL}/agendar-corte/bloqueios?month=${ym}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+
+          const json = await r.json()
+
+          this.blockedDays = (json.blockedDays || []).map(b => ({
+            date: new Date(b.date).toISOString().split('T')[0],
+            reason: b.reason || 'Dia indisponível'
+          }))
+
+        } catch (e) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.debug('[fetchBlockedDays] erro:', e?.message || e)
+          }
+        }
+      },
+
+      async onMonthChange ({ year, month }) {
+        await this.fetchBlockedDays(year, month)
+      },
+
+      slotsRequired () {
+    if (this.selectedServices.length <= 1) return 1
+    if (this.selectedServices.length === 2) return 3
+    return 4
+  },
+
+ isTimeUnavailable (hour) {
+  // Se o dia inteiro está bloqueado, nada é disponível
+  if (this.isDayBlocked) return true
+
   const startIndex = this.allTimes.indexOf(hour)
   if (startIndex === -1) return true
 
@@ -320,11 +448,14 @@ isTimeUnavailable (hour) {
   for (let i = startIndex; i < this.allTimes.length; i++) {
     const slot = this.allTimes[i]
 
+    // Almoço
     if (this.lunchBlockedTimes.includes(slot)) return true
 
+    // Já ocupado ou bloqueado pelo admin
     if (this.bookedTimes.includes(slot)) return true
 
     slotsCount++
+
     if (slotsCount >= required) return false
   }
 
@@ -389,7 +520,16 @@ isTimeUnavailable (hour) {
           toastError('Erro ao conectar com o servidor.')
         }
       })())
-    }
+    },
+
+    sameDay (d1, d2) {
+        if (!d1 || !d2) return false
+        return (
+          d1.getFullYear() === d2.getFullYear() &&
+          d1.getMonth() === d2.getMonth() &&
+          d1.getDate() === d2.getDate()
+        )
+      }
   },
 
   watch: {

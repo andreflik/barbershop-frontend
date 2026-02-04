@@ -3,9 +3,15 @@
     <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center px-4 py-4 sm:py-5 gap-3">
       <!-- Logo + título -->
       <div class="flex items-center gap-3 min-w-0">
-        <img src="/logo-barber.png" alt="Logo" class="h-10 w-10 rounded-lg bg-white p-1 shadow" />
+        <img
+          src="/logo-barber.png"
+          alt="Logo"
+          class="h-10 w-10 rounded-lg bg-white p-1 shadow"
+        />
         <div class="truncate">
-          <h1 class="text-lg sm:text-xl font-bold truncate">Painel Administrativo</h1>
+          <h1 class="text-lg sm:text-xl font-bold truncate">
+            Painel Administrativo
+          </h1>
           <p class="text-xs sm:text-sm opacity-90 truncate">
             Bem-vindo, {{ userName }}
           </p>
@@ -40,20 +46,26 @@ import api from '@/services/api'
 
 export default {
   name: 'AdminNav',
+
   data() {
     return {
       userName: localStorage.getItem('user_name') || 'Usuário',
+
       navLinks: [
         { label: 'Painel do Usuário', to: '/dashboard' },
         { label: 'Agendamentos', to: '/admin/agendamentos' },
         { label: 'Serviços', to: '/admin/servicos' },
+        { label: 'Bloqueios', to: '/admin/blocked-periods' } // 👈 NOVO
       ],
     }
   },
+
   methods: {
+    // 🔥 melhora a detecção de rota ativa (funciona com subrotas)
     isActiveRoute(route) {
-      return this.$route.path === route
+      return this.$route.path.startsWith(route)
     },
+
     async logout() {
       try {
         await api.post('/logout')
