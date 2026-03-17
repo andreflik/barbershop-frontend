@@ -241,14 +241,20 @@ export default {
       this.childReady = true
       this.childLoading = false
     },
+    
     applyAuthToken(tokenMaybe) {
-      const token = tokenMaybe || localStorage.getItem('auth_token')
-      if (tokenMaybe) localStorage.setItem('auth_token', tokenMaybe)
-      if (token && api?.defaults?.headers?.common) {
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      }
-      this.authReady = !!token
-    },
+  const token = tokenMaybe || sessionStorage.getItem('auth_token')
+
+  if (tokenMaybe) {
+    sessionStorage.setItem('auth_token', tokenMaybe)
+  }
+
+  if (token && api?.defaults?.headers?.common) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`
+  }
+
+  this.authReady = !!token
+},
     async fetchMe() {
       try {
         const { data } = await api.get('/me')
