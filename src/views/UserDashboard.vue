@@ -161,6 +161,7 @@ export default {
   },
 
   async created() {
+    this.applyAuthToken()
     const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''))
     const searchParams = new URLSearchParams(window.location.search)
 
@@ -242,14 +243,14 @@ export default {
       this.childLoading = false
     },
     
-    applyAuthToken(tokenMaybe) {
+   applyAuthToken(tokenMaybe) {
   const token = tokenMaybe || sessionStorage.getItem('auth_token')
 
   if (tokenMaybe) {
     sessionStorage.setItem('auth_token', tokenMaybe)
   }
 
-  if (token && api?.defaults?.headers?.common) {
+  if (token) {
     api.defaults.headers.common['Authorization'] = `Bearer ${token}`
   }
 

@@ -6,6 +6,7 @@ import './index.css'
 import Alerts from '@/plugins/alerts'
 import VCalendar from 'v-calendar'
 import 'v-calendar/style.css'
+import api from '@/services/api'
 
 // Carrega SweetAlert2 por CDN (garante window.Swal real)
 function loadSwalFromCDN () {
@@ -27,6 +28,12 @@ function loadSwalFromCDN () {
         script.onerror = () => resolve(null)
         document.head.appendChild(script)
     })
+}
+
+const token = sessionStorage.getItem('auth_token')
+
+if (token) {
+  api.defaults.headers.common['Authorization'] = `Bearer ${token}`
 }
 
 // Inicia o app normalmente; o plugin lida com fallback enquanto o CDN carrega
