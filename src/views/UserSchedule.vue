@@ -271,7 +271,7 @@ export default {
     },
 
     async fetchServicos () {
-      const token = localStorage.getItem('auth_token')
+      const token = sessionStorage.getItem('auth_token')
       try {
         const res = await fetch(`${API_URL}/agendar-corte/servicos`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -352,7 +352,7 @@ export default {
   if (!this.selectedDate) return
   this.selectedTime = ''
 
-  const token = localStorage.getItem('auth_token')
+  const token = sessionStorage.getItem('auth_token')
   if (!token) {
     toastError('Faça login novamente.')
     return
@@ -401,7 +401,7 @@ export default {
 
 
       async fetchBlockedDays (year, month) {
-        const token = localStorage.getItem('auth_token')
+        const token = sessionStorage.getItem('auth_token')
         if (!token) return
 
         const ym = `${year}-${String(month).padStart(2, '0')}`
@@ -486,7 +486,7 @@ export default {
         return
       }
 
-      const token = localStorage.getItem('auth_token')
+      const token = sessionStorage.getItem('auth_token')
       if (!token) {
         toastError('Faça login novamente.')
         return
